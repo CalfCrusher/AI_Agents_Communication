@@ -31,20 +31,20 @@ pip install -r requirements.txt
 # Basic
 python conversation.py --config ../config.json
 
-# With enhancements
+# With enhancements (mission-control tone)
 python conversation.py \
   --config ../config.json \
-  --models gemma3:1b tinyllama:1.1b \
-  --rounds 4 \
-  --interactions 2 \
+  --models gemma3:1b qwen3:1.7b \
+  --rounds 1 \
+  --interactions 4 \
   --pin-initial \
-  --turn-template "Stay in character: {initial_prompt}\nPartner said: {partner_message}\nReply in <=20 words." \
-  --initial "Brainstorm coordination tactics for multi-agent swarm." \
-  --moderator gemma3:1b \
+  --turn-template "{partner_message}\n\nProvide the next actionable mission-control update or question in <= 20 words." \
+  --initial "Two mission controllers coordinate to diagnose a satellite power anomaly. Stay professional, concise, and focused on actionable steps." \
+  --moderator kimi-k2-thinking:cloud \
   --memory 6 \
   --stream \
-  --delay 3 \
-  --json
+  --delay 5 \
+  --plain
 ```
 
 ## Configuration (`config.json`)
@@ -82,6 +82,36 @@ Ideas now partially implemented and further options:
 - Add per-model role instructions (different system messages)
 - Integrate a websocket UI for live token display
 - Replace simple heuristics with dedicated analysis model calls
+
+### Scenario presets & tone swaps
+- Keep multiple config files (for example `configs/mission_control.json`, `configs/boardroom.json`) and pass the right one via `--config`.
+- Use `--initial`, `--turn-template`, and `--pin-initial` on the CLI when you want one-off tone changes without editing files.
+- `pin_extra_instructions` lets you append scenario-specific guardrails (e.g., "No affectionate language" or "Respond with legal jargon").
+- Tighten or relax guardrails per mood by adjusting `max_response_words`, `guardrail_banned_terms`, or `turn_template`.
+
+#### Mission-control conversation (sample output)
+Command:
+
+```bash
+/Users/christopher/Documents/VSCode_Projects/AI_Agents_Communication/.venv/bin/python \
+  python/conversation.py \
+  --config config.json \
+  --models gemma3:1b qwen3:1.7b \
+  --rounds 1 \
+  --interactions 4 \
+  --pin-initial \
+  --turn-template "{partner_message}\n\nProvide the next actionable mission-control update or question in <= 20 words." \
+  --initial "Two mission controllers coordinate to diagnose a satellite power anomaly. Stay professional, concise, and focused on actionable steps." \
+  --moderator kimi-k2-thinking:cloud \
+  --plain \
+  --stream \
+  --delay 5
+```
+
+Observed behavior:
+- Turns stay under 20 words and reference telemetry ("Requesting node 7's power consumption telemetry for immediate analysis").
+- Guardrails retry when limits are exceeded, keeping tone concise.
+- Moderator summary confirms models converged on Node 7 diagnostics with no off-topic chatter.
 
 ## Transcript Output
 - Text: `transcripts/conversation_<timestamp>.txt`
