@@ -1,6 +1,7 @@
 import argparse
 import json
 import time
+from contextlib import nullcontext
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict
@@ -82,6 +83,19 @@ def topic_similarity(base: str, current: str) -> float:
     return inter / union if union else 1.0
 
 
+def guardrail_violation(text: str, max_words: int, banned_terms: List[str]) -> str | None:
+    stripped = text.strip()
+    if not stripped:
+        return "Empty response"
+    if max_words and len(stripped.split()) > max_words:
+        return f"Too long ({len(stripped.split())} words > {max_words})"
+    lowered = stripped.lower()
+    for term in banned_terms:
+        if term in lowered:
+            return f"Contains forbidden term '{term}'"
+    return None
+
+
 def stream_chat(model: str, messages: List[Dict[str, str]], live: Live) -> str:
     final = []
     try:
@@ -154,11 +168,71 @@ def make_box(title: str, content: str, color: str) -> str:
     return color + "\n" + top + "\n" + "\n".join(body) + "\n" + bottom + Style.RESET_ALL
 
 
+def format_turn_block(round_num: int, interaction: int, turn: int, model: str, response: str, similarity: float, sentiment: Dict[str, int]) -> str:
+    border = "-" * 70
+    clean_response = response.strip()
+    block = [
+        f"Round {round_num} | Interaction {interaction} | Turn {turn}",
+        f"Model: {model}",
+        "",
+        "Response:",
+        clean_response,
+        "",
+        f"Similarity: {similarity:.2f} | Sentiment: +{sentiment['positive']} -{sentiment['negative']}",
+        border,
+        "",
+    ]
+    return "\n".join(block)
+
+
+def format_moderator_block(round_num: int, summary: str) -> str:
+    border = "=" * 70
+    return (
+        f"Moderator Summary (Round {round_num})\n"
+        f"{summary.strip()}\n"
+        f"{border}\n\n"
+    )
+
+
 def run_conversation(args):
     config = load_config(args.config)
     models = auto_models_if_needed(args.models or config.get("models", []))
     rounds = args.rounds or int(config.get("rounds", 5))
+    config_interactions = (
+        config.get("interactions_per_round")
+        or config.get("interactions")
+        or config.get("turns_per_round")
+    )
+    interactions = args.interactions or int(config_interactions or 1)
     initial_prompt = args.initial or config.get("initial_prompt", "Hello")
+    pin_initial = args.pin_initial or bool(config.get("pin_initial_prompt", False))
+    turn_template = (
+        args.turn_template
+        or config.get("turn_template")
+        or "{partner_message}"
+    )
+    max_words = args.max_words or int(config.get("max_response_words", 25))
+    guardrail_terms = [
+        term.lower()
+        for term in config.get(
+            "guardrail_banned_terms",
+            [
+                "instruction",
+                "narrator",
+                "please enter",
+                "respond as follows",
+                "as you requested",
+                "invoice",
+                "accountant",
+            ],
+        )
+    ]
+    enforce_guardrails = config.get("strict_guardrails", True)
+    guardrail_attempts = int(config.get("guardrail_max_attempts", 2))
+    base_system_prompt = config.get(
+        "system_prompt",
+        "You are an agent collaborating concisely while respecting user instructions.",
+    )
     moderator_model = args.moderator
     memory = args.memory
     stream = args.stream
@@ -166,6 +240,8 @@ def run_conversation(args):
 
     if len(models) < 2:
         raise ValueError("Need at least two models (provide via --models or config)")
+    if interactions < 1:
+        raise ValueError("--interactions must be at least 1")
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
     text_file = TRANSCRIPT_DIR / f"conversation_{timestamp}.txt"
@@ -175,69 +251,147 @@ def run_conversation(args):
     current_prompt = initial_prompt
     base_topic = initial_prompt
 
-    console.print(f"[bold white]Models: {', '.join(models)} | Rounds: {rounds} | Start: {timestamp}[/bold white]")
+    console.print(
+        f"[bold white]Models: {', '.join(models)} | Rounds: {rounds} | Interactions/Round: {interactions} | Start: {timestamp}[/bold white]"
+    )
     console.print(f"[bold white]Initial Prompt -> {models[0]}:[/bold white] [bright_cyan]{initial_prompt}[/bright_cyan]")
     console.rule()
 
     with text_file.open("w", encoding="utf-8") as tf:
-        tf.write(f"Models: {', '.join(models)} | Rounds: {rounds} | Start: {timestamp}\n")
-        tf.write(f"Initial Prompt -> {models[0]}: {initial_prompt}\n{'='*70}\n")
+        tf.write(
+            f"Models: {', '.join(models)} | Rounds: {rounds} | Interactions/Round: {interactions} | Start: {timestamp}\n"
+        )
+        tf.write(f"Initial Prompt -> {models[0]}: {initial_prompt}\n{'='*70}\n\n")
 
         for r in range(1, rounds + 1):
+            console.rule(f"Round {r}")
+            console.print()
             round_entries: List[Dict] = []
-            for idx, model in enumerate(models):
-                color = MODEL_COLORS[idx % len(MODEL_COLORS)]
-                mem_slice = history[-memory:] if memory > 0 else []
-                messages = (
-                    [{"role": "system", "content": "You are an agent collaborating concisely."}]
-                    + [{"role": "assistant", "content": e["response"]} for e in mem_slice]
-                    + [{"role": "user", "content": current_prompt}]
-                )
+            for interaction in range(1, interactions + 1):
+                for idx, model in enumerate(models):
+                    color = MODEL_COLORS[idx % len(MODEL_COLORS)]
+                    mem_slice = history[-memory:] if memory > 0 else []
 
-                panel_title = f"Round {r} • Turn {idx+1} • Model [bold]{model}[/bold]"
-                
-                response_content = Text("Thinking...")
-                live = Live(Panel(response_content, title=panel_title, border_style=color), console=console, refresh_per_second=10)
-                
-                with live:
-                    response = call_model(model, messages, stream, live)
+                    system_prompt = base_system_prompt
+                    if pin_initial:
+                        system_prompt = (
+                            f"{system_prompt}\n\n"
+                            "Conversation instructions you must obey without repeating them verbatim:\n"
+                            f"{initial_prompt}\n"
+                            "Stay strictly in character, respond affectionately, and keep replies under 25 words."
+                        )
 
-                sim = topic_similarity(base_topic, response)
-                senti = sentiment_score(response)
-                
-                final_panel = Panel(
-                    Markdown(response, style="bright_white"),
-                    title=panel_title,
-                    subtitle=f"Sentiment: [green]+{senti['positive']}[/green] [red]-{senti['negative']}[/red] | Similarity: {sim:.2f}",
-                    border_style=color
-                )
-                console.print(final_panel)
+                    messages = [{"role": "system", "content": system_prompt}]
 
-                entry = {
-                    "round": r,
-                    "turn": idx + 1,
-                    "model": model,
-                    "prompt": current_prompt,
-                    "response": response,
-                    "topic_similarity": sim,
-                    "sentiment": senti,
-                }
-                history.append(entry)
-                round_entries.append(entry)
+                    for entry in mem_slice:
+                        role = "assistant" if entry["model"] == model else "user"
+                        messages.append(
+                            {
+                                "role": role,
+                                "content": entry["response"],
+                            }
+                        )
 
-                tf.write(
-                    f"[Round {r} | Turn {idx+1} | Model: {model}]\n"
-                    f"Prompt:\n{current_prompt}\n"
-                    f"Response:\n{response}\n"
-                    f"TopicSimilarity: {sim:.2f} Sentiment: +{senti['positive']} -{senti['negative']}\n"
-                    f"{'-'*50}\n"
-                )
+                    if "{partner_message}" in turn_template or "{initial_prompt}" in turn_template:
+                        user_payload = turn_template.replace("{initial_prompt}", initial_prompt).replace(
+                            "{partner_message}", current_prompt
+                        )
+                    else:
+                        user_payload = f"{turn_template}\n{current_prompt}".strip()
 
-                if sim < 0.25:
-                    console.print(f"[bold red]⚠️ Topic Drift Alert: similarity {sim:.2f}[/bold red]")
+                    messages.append({"role": "user", "content": user_payload})
 
-                current_prompt = response
-                time.sleep(delay)
+                    panel_title = (
+                        f"Round {r} • Interaction {interaction} • Turn {idx+1} • Model [bold]{model}[/bold]"
+                    )
+
+                    response_content = Text("Thinking...")
+                    live = Live(
+                        Panel(response_content, title=panel_title, border_style=color),
+                        console=console,
+                        refresh_per_second=10,
+                        transient=True,
+                    )
+
+                    attempt = 0
+                    response = ""
+                    violation = None
+
+                    while True:
+                        with live if attempt == 0 else nullcontext():
+                            response = call_model(
+                                model,
+                                messages if attempt == 0 else retry_messages,
+                                stream if attempt == 0 else False,
+                                live if attempt == 0 else None,
+                            )
+
+                        violation = (
+                            guardrail_violation(response, max_words, guardrail_terms)
+                            if enforce_guardrails
+                            else None
+                        )
+
+                        if not violation or attempt >= guardrail_attempts - 1:
+                            break
+
+                        console.print(
+                            f"[yellow]Guardrail retry for {model}: {violation}. Re-asking...[/yellow]"
+                        )
+                        retry_messages = messages + [
+                            {
+                                "role": "user",
+                                "content": (
+                                    f"Redo that response in under {max_words} words. "
+                                    "Stay fully in character, affectionate, and avoid meta language."
+                                ),
+                            }
+                        ]
+                        attempt += 1
+
+                    sim = topic_similarity(base_topic, response)
+                    senti = sentiment_score(response)
+
+                    final_panel = Panel(
+                        Markdown(response, style="bright_white"),
+                        title=panel_title,
+                        subtitle=f"Sentiment: [green]+{senti['positive']}[/green] [red]-{senti['negative']}[/red] | Similarity: {sim:.2f}",
+                        border_style=color,
+                    )
+                    console.print(final_panel)
+                    console.print()
+
+                    entry = {
+                        "round": r,
+                        "interaction": interaction,
+                        "turn": idx + 1,
+                        "model": model,
+                        "prompt": current_prompt,
+                        "response": response,
+                        "topic_similarity": sim,
+                        "sentiment": senti,
+                    }
+                    history.append(entry)
+                    round_entries.append(entry)
+
+                    tf.write(
+                        format_turn_block(
+                            round_num=r,
+                            interaction=interaction,
+                            turn=idx + 1,
+                            model=model,
+                            response=response,
+                            similarity=sim,
+                            sentiment=senti,
+                        )
+                    )
+
+                    if sim < 0.25:
+                        console.print()
+                        console.print(f"[bold red]⚠️ Topic Drift Alert: similarity {sim:.2f}[/bold red]")
+
+                    current_prompt = response
+                    time.sleep(delay)
 
             if moderator_model:
                 summary = moderator_summary(moderator_model, r, round_entries, initial_prompt)
@@ -247,9 +401,11 @@ def run_conversation(args):
                     border_style="white"
                 )
                 console.print(mod_panel)
-                tf.write(f"[Moderator Round {r}]\n{summary}\n{'='*50}\n")
+                console.print()
+                tf.write(format_moderator_block(round_num=r, summary=summary))
                 history.append({
                     "round": r,
+                    "interaction": None,
                     "turn": None,
                     "model": moderator_model,
                     "prompt": "round summary",
@@ -267,6 +423,7 @@ def run_conversation(args):
                 "models": models,
                 "moderator": moderator_model,
                 "rounds": rounds,
+                "interactions_per_round": interactions,
                 "initial_prompt": initial_prompt,
                 "history": history,
             }, jf, indent=2)
@@ -279,6 +436,21 @@ def build_parser():
     p.add_argument("--config", default="../config.json", help="Path to config.json or .yaml")
     p.add_argument("--models", nargs="*", help="Override models (space separated)")
     p.add_argument("--rounds", type=int, help="Override number of rounds")
+    p.add_argument("--interactions", type=int, help="Number of interaction cycles per round (default 1)")
+    p.add_argument(
+        "--pin-initial",
+        action="store_true",
+        help="Include the initial prompt as guardrail instructions before every turn",
+    )
+    p.add_argument(
+        "--turn-template",
+        help="Template for each user prompt. Supports {initial_prompt} and {partner_message} placeholders.",
+    )
+    p.add_argument(
+        "--max-words",
+        type=int,
+        help="Maximum words allowed per response before triggering guardrails",
+    )
     p.add_argument("--initial", help="Override initial prompt")
     p.add_argument("--moderator", help="Moderator model name (optional)")
     p.add_argument("--memory", type=int, default=4, help="Number of previous responses to include as context")

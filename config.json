@@ -1,5 +1,12 @@
 {
-  "models": ["gemma3:1b", "tinyllama:1.1b"],
+  "models": ["gemma3:1b", "llama3.1:8b"],
   "rounds": 5,
+  "interactions_per_round": 1,
+  "pin_initial_prompt": true,
+  "turn_template": "{partner_message}\n\nStay faithful to the scenario described earlier and reply lovingly in <= 15 words without mentioning instructions.",
+  "max_response_words": 20,
+  "strict_guardrails": true,
+  "guardrail_max_attempts": 3,
+  "guardrail_banned_terms": ["instruction", "narrator", "invoice", "accountant", "respond as follows", "please enter"],
   "initial_prompt": "Discuss like two friendly people. Keep responses concise."
 }
