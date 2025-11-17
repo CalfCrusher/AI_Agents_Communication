@@ -136,6 +136,26 @@ Observed behavior:
 - Guardrails retry when limits are exceeded, keeping tone concise.
 - Moderator summary confirms models converged on Node 7 diagnostics with no off-topic chatter.
 
+#### Weekend-planning quick tests
+Two ready-to-run variants that show how `--memory` changes the feel of a short roleplay while keeping the 40-word guardrail:
+
+```bash
+# Lean memory (2 turns), brisk pacing, no moderator
+python python/conversation.py --config config.json --models gemma3:1b phi:2.7b \
+  --rounds 1 --interactions 2 --pin-initial \
+  --turn-template "{partner_message}\n\nAsk your friend a question about weekend plans or answer theirs with your own idea. Max 40 words." \
+  --initial "Roleplay as two friends planning what to do this weekend. Take turns asking and answering questions. No meta-commentary." \
+  --max-words 40 --memory 2 --delay 3 --plain --stream
+
+# Longer memory (8 turns) plus moderator recap
+python python/conversation.py --config config.json --models gemma3:1b phi:2.7b \
+  --rounds 2 --interactions 2 --pin-initial \
+  --turn-template "{partner_message}\n\nAsk your friend a question about weekend plans or answer theirs with your own idea. Max 40 words." \
+  --initial "Roleplay as two friends planning what to do this weekend. Take turns asking and answering questions. No meta-commentary." \
+  --max-words 40 --memory 8 --moderator kimi-k2-thinking:cloud --delay 5 --plain --stream
+```
+Use lower memory for ultra-tight exchanges or bump it higher when you want callbacks to earlier ideas (e.g., "You handle Saturday hiking, I book Sunday brunch").
+
 ## Transcript Output
 - Text: `transcripts/conversation_<timestamp>.txt`
 - JSON (if `--json`): includes structured history + metadata.
