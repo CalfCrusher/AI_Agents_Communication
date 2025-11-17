@@ -1,0 +1,5 @@
+{
+  "models": ["gemma3:1b", "tinyllama:1.1b"],
+  "rounds": 5,
+  "initial_prompt": "Discuss like two friendly people. Keep responses concise."
+}
