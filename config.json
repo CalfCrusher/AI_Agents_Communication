@@ -3,10 +3,11 @@
   "rounds": 5,
   "interactions_per_round": 1,
   "pin_initial_prompt": true,
-  "turn_template": "{partner_message}\n\nStay faithful to the scenario described earlier and reply lovingly in <= 15 words without mentioning instructions.",
+  "turn_template": "{partner_message}\n\nProvide the next actionable mission-control update or question in <= 20 words. Reference telemetry or systems when possible.",
   "max_response_words": 20,
   "strict_guardrails": true,
   "guardrail_max_attempts": 3,
   "guardrail_banned_terms": ["instruction", "narrator", "invoice", "accountant", "respond as follows", "please enter"],
-  "initial_prompt": "Discuss like two friendly people. Keep responses concise."
+  "pin_extra_instructions": "Maintain an objective mission-controller tone. Discuss diagnostics, data, and next steps. Avoid affectionate language or small talk.",
+  "initial_prompt": "Two mission controllers coordinate to diagnose a satellite power anomaly. Stay professional, concise, and focused on actionable steps."
 }

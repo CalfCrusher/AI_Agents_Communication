@@ -54,12 +54,13 @@ python conversation.py \
   "rounds": 5,
   "interactions_per_round": 2,
   "pin_initial_prompt": true,
-  "turn_template": "{partner_message}\n\nStay in the previously described scenario and reply in <=20 words without mentioning instructions.",
+  "turn_template": "{partner_message}\n\nProvide the next actionable mission-control update or question in <= 20 words. Reference telemetry or systems when possible.",
   "max_response_words": 20,
   "strict_guardrails": true,
   "guardrail_max_attempts": 3,
   "guardrail_banned_terms": ["instruction", "narrator", "invoice", "accountant", "respond as follows", "please enter"],
-  "initial_prompt": "Discuss potential collaboration strategies for building a multi-agent system. Keep responses concise."
+  "pin_extra_instructions": "Maintain an objective mission-controller tone. Discuss diagnostics, data, and next steps. Avoid affectionate language or small talk.",
+  "initial_prompt": "Two mission controllers coordinate to diagnose a satellite power anomaly. Stay professional, concise, and focused on actionable steps."
 }
 ```
 - `models`: order defines turn sequence.
@@ -71,6 +72,7 @@ python conversation.py \
 - `strict_guardrails`: toggles the automatic retry mechanism when models drift or hit banned terms.
 - `guardrail_max_attempts`: number of times a response may be retried before accepting it as-is.
 - `guardrail_banned_terms`: list of lowercase substrings that immediately trigger a retry (handy for filtering meta instructions like “You are an accountant”).
+- `pin_extra_instructions`: optional text appended after the pinned initial prompt when `pin_initial_prompt` is true, useful for scenario-specific tone requirements.
 - `initial_prompt`: seed message given to the first model.
 
 ## Extending

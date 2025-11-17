@@ -206,6 +206,7 @@ def run_conversation(args):
     interactions = args.interactions or int(config_interactions or 1)
     initial_prompt = args.initial or config.get("initial_prompt", "Hello")
     pin_initial = args.pin_initial or bool(config.get("pin_initial_prompt", False))
+    pin_extra_instructions = config.get("pin_extra_instructions", "")
     turn_template = (
         args.turn_template
         or config.get("turn_template")
@@ -274,12 +275,14 @@ def run_conversation(args):
 
                     system_prompt = base_system_prompt
                     if pin_initial:
-                        system_prompt = (
-                            f"{system_prompt}\n\n"
-                            "Conversation instructions you must obey without repeating them verbatim:\n"
-                            f"{initial_prompt}\n"
-                            "Stay strictly in character, respond affectionately, and keep replies under 25 words."
-                        )
+                        pin_sections = [
+                            "Conversation instructions you must obey without repeating them verbatim:",
+                            initial_prompt,
+                        ]
+                        extra = pin_extra_instructions.strip()
+                        if extra:
+                            pin_sections.append(extra)
+                        system_prompt = f"{system_prompt}\n\n" + "\n".join(pin_sections)
 
                     messages = [{"role": "system", "content": system_prompt}]
 
