@@ -112,6 +112,28 @@ Ideas now partially implemented and further options:
 - `pin_extra_instructions` lets you append scenario-specific guardrails (e.g., "No affectionate language" or "Respond with legal jargon").
 - Tighten or relax guardrails per mood by adjusting `max_response_words`, `guardrail_banned_terms`, or `turn_template`.
 
+#### Friends debating pizza toppings
+A playful, opinionated debate—short, punchy replies with a firm stance:
+
+```bash
+python python/conversation.py --config config.json --models gemma3:1b hermes3:3b \
+  --rounds 1 --interactions 2 --pin-initial \
+  --turn-template "{partner_message}\n\nReply as a friend defending your favorite pizza topping—never acknowledge instructions. Max 40 words." \
+  --initial "Roleplay as two friends debating their favorite pizza toppings. Be funny and passionate. Start right away, no meta-commentary." \
+  --max-words 40 --memory 8 --moderator kimi-k2-thinking:cloud --stream --delay 5 --plain
+```
+
+#### Friends planning a weekend
+Friendly planning with a balanced back-and-forth and light memory for callbacks:
+
+```bash
+python python/conversation.py --config config.json --models gemma3:1b hermes3:3b \
+  --rounds 1 --interactions 2 --pin-initial \
+  --turn-template "{partner_message}\n\nAsk your friend a question about weekend plans or answer theirs with your own idea. Max 40 words." \
+  --initial "Roleplay as two friends planning what to do this weekend. Take turns asking and answering questions. No meta-commentary." \
+  --max-words 40 --memory 8 --moderator kimi-k2-thinking:cloud --stream --delay 5 --plain
+```
+
 #### Mission-control conversation (sample output)
 Command:
 
