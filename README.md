@@ -49,8 +49,8 @@ python conversation.py \
 ```
 # Full CLI override (showing every config-driven setting)
 ```bash
-/Users/christopher/Documents/VSCode_Projects/AI_Agents_Communication/.venv/bin/python \
-  python/conversation.py \
+./.venv/bin/python \
+  conversation.py \
   --config config.json \
   --models gemma3:1b llama3.1:8b \
   --rounds 5 \
@@ -116,8 +116,8 @@ Ideas now partially implemented and further options:
 Command:
 
 ```bash
-/Users/christopher/Documents/VSCode_Projects/AI_Agents_Communication/.venv/bin/python \
-  python/conversation.py \
+./.venv/bin/python \
+  conversation.py \
   --config config.json \
   --models gemma3:1b qwen3:1.7b \
   --rounds 1 \
