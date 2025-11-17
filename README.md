@@ -34,18 +34,41 @@ python conversation.py --config ../config.json
 # With enhancements (mission-control tone)
 python conversation.py \
   --config ../config.json \
-  --models gemma3:1b qwen3:1.7b \
-  --rounds 1 \
-  --interactions 4 \
+  --models gemma3:1b llama3.1:8b \
+  --rounds 5 \
+  --interactions 1 \
   --pin-initial \
-  --turn-template "{partner_message}\n\nProvide the next actionable mission-control update or question in <= 20 words." \
+  --turn-template "{partner_message}\\n\\nProvide the next actionable mission-control update or question in <= 20 words. Reference telemetry or systems when possible." \
   --initial "Two mission controllers coordinate to diagnose a satellite power anomaly. Stay professional, concise, and focused on actionable steps." \
+  --max-words 20 \
   --moderator kimi-k2-thinking:cloud \
   --memory 6 \
   --stream \
   --delay 5 \
   --plain
 ```
+# Full CLI override (showing every config-driven setting)
+```bash
+/Users/christopher/Documents/VSCode_Projects/AI_Agents_Communication/.venv/bin/python \
+  python/conversation.py \
+  --config config.json \
+  --models gemma3:1b llama3.1:8b \
+  --rounds 5 \
+  --interactions 1 \
+  --pin-initial \
+  --turn-template "{partner_message}\\n\\nProvide the next actionable mission-control update or question in <= 20 words. Reference telemetry or systems when possible." \
+  --initial "Two mission controllers coordinate to diagnose a satellite power anomaly. Stay professional, concise, and focused on actionable steps." \
+  --max-words 20 \
+  --memory 4 \
+  --moderator kimi-k2-thinking:cloud \
+  --stream \
+  --delay 5 \
+  --plain
+```
+Notes:
+- `--pin-initial` mirrors `pin_initial_prompt: true`. Every turn gets the initial prompt plus any `pin_extra_instructions`, which is why tone changes can happen via config/CLI only.
+- Guardrail banned terms, retry counts, and strict mode still come from `config.json` because there are no dedicated CLI flags yet; keep them in the file or maintain per-scenario config copies.
+
 
 ## Configuration (`config.json`)
 ```json
