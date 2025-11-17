@@ -1,0 +1,23 @@
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Python cache and build artifacts
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+build/
+dist/
+
+# Editor state
+.vscode/
+.idea/
+
+# Generated transcripts and logs
+transcripts/
+*.log
+
+# macOS cruft
+.DS_Store
