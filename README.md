@@ -219,29 +219,68 @@ During a persistent run each turn logs how many memories were injected plus how 
 
 ## World Simulation (Autonomous Agents)
 
-The world simulation extends the persistence layer to create autonomous multi-agent daily life over timeboxed runs. Agents move between locations, perform activities, chat with each other, and write reflections - all recorded as structured events and memories.
+The world simulation extends the persistence layer to create autonomous multi-agent daily life over timeboxed runs. Agents move between locations, perform activities, chat with each other using **real Ollama LLM calls**, and write reflections - all recorded as structured events and memories.
 
-### Setup
+**⚠️ IMPORTANT: Ollama Server Required**
+The world simulation now integrates real LLM conversations. You MUST have Ollama running locally:
+```bash
+ollama serve  # Keep this running in a separate terminal
+```
+
+Agents use their personas (bio, job, interests) to have contextual conversations via Ollama. Default model: `tinyllama:1.1b` (fast, small). You can use any locally pulled model.
+
+### Quick Start
 
 ```bash
-# 1. Initialize base DB + world assets
+# 1. Ensure Ollama is running
+ollama serve &
+
+# 2. Pull a small, fast model (if not already available)
+ollama pull tinyllama:1.1b
+
+# 3. Initialize world database with locations and activities
+cd /path/to/AI_Agents_Communication
+python -m tools.db world-init
+
+# 4. Seed agents with personas
+python seed_agents.py
+
+# 5. Run 1-day autonomous simulation with real LLM conversations
+cd python
+python world.py --days 1
+
+# 6. Inspect outputs
+ls ../reports/
+sqlite3 data/agents.db "SELECT COUNT(*) FROM conversations;"
+sqlite3 data/agents.db "SELECT COUNT(*) FROM turns;"
+```
+
+### Detailed Setup
+
+```bash
+# Initialize base DB
 python -m tools.db --db-url sqlite:///./data/agents.db init
+
+# Seed agents manually (alternative to seed_agents.py)
 python -m tools.db --db-url sqlite:///./data/agents.db seed-agent \
   --name "Ava" --bio "Designer" --interests "coffee:0.8" \
   --family '{"spouse":"Ben"}'
 python -m tools.db --db-url sqlite:///./data/agents.db seed-agent \
   --name "Ben" --bio "Developer" --interests "cycling:0.9"
+
+# Initialize world locations and activities
 python -m tools.db --db-url sqlite:///./data/agents.db world-init
 
-# 2. Simulate a single 12-hour day for agents
-python python/world.py --days 1 --agents 2 --tick-minutes 60 \
+# Run simulation (from python/ directory)
+cd python
+python world.py --days 1 --agents 2 --tick-minutes 60 \
   --start-hour 8 --end-hour 20 --persist \
   --db-url sqlite:///./data/agents.db \
   --max-concurrent-chats 1 --report-format both
 
-# 3. Inspect outputs
-ls reports/
-sqlite3 data/agents.db 'SELECT count(*) FROM world_events;'
+# Inspect conversation data
+sqlite3 data/agents.db "SELECT id, scenario FROM conversations LIMIT 5;"
+sqlite3 data/agents.db "SELECT conversation_id, agent_id, role, substr(content, 1, 50) FROM turns LIMIT 10;"
 ```
 
 ### World Simulation CLI Flags
@@ -268,12 +307,21 @@ The `world_config.yaml` file defines:
 
 ### Available Actions
 
-The simulation includes five action types:
+The simulation includes five action types with **Ollama LLM integration**:
 - **move**: Navigate between locations (Home, Office, Cafe, Gym, Park)
 - **solo_reflection**: Personal reflection and journaling
-- **duo_chat**: Two-agent conversation (can integrate with conversation.py)
-- **group_meeting**: Multi-agent standup or discussion
+- **duo_chat**: Two-agent conversation using **real Ollama LLM calls** (agents converse based on their personas)
+- **group_meeting**: Multi-agent standup using **real Ollama LLM calls** (group discussions with LLM-generated updates)
 - **task_update**: Work task progress
+
+**LLM Integration Details:**
+- `duo_chat` actions create actual conversations between agents via Ollama API
+- `group_meeting` actions generate multi-agent standups with LLM responses
+- All LLM conversations are saved to the `conversations` and `turns` tables
+- Agents use persona-based prompts built from their bio, job, and interests
+- Default model: `tinyllama:1.1b` (configurable in `python/world/conversation_runner.py`)
+- Conversations include context about the interaction (e.g., "hobbies and interests", "recent experiences")
+- Error handling: gracefully logs errors if Ollama is unavailable
 
 ### Reports
 
