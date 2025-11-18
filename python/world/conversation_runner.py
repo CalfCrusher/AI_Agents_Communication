@@ -78,8 +78,11 @@ class WorldConversationRunner:
 
         for turn_idx in range(turns * 2):  # Each "turn" is 2 messages (A->B, B->A)
             try:
+                # Use agent's preferred model if available, otherwise default
+                model_to_use = getattr(current_agent, 'preferred_model', None) or self.default_model
+                
                 # Get model response
-                response = self._call_ollama(self.default_model, messages)
+                response = self._call_ollama(model_to_use, messages)
                 
                 # Log turn to database
                 turn_record = Turn(
@@ -88,7 +91,7 @@ class WorldConversationRunner:
                     interaction=0,
                     turn=turn_idx % 2,
                     agent_id=current_agent.id,
-                    model=self.default_model,
+                    model=model_to_use,
                     role="assistant",
                     content=response
                 )
@@ -132,20 +135,25 @@ class WorldConversationRunner:
         ]
         
         if agent.job:
-            prompt_parts.append(f"Job: {agent.job}.")
+            prompt_parts.append(f"Your job: {agent.job}.")
         
         if agent.bio:
-            prompt_parts.append(f"Bio: {agent.bio}.")
+            prompt_parts.append(f"About you: {agent.bio}.")
         
         # Add interests
         if agent.interests:
             interests = ", ".join([i.tag for i in agent.interests[:3]])
-            prompt_parts.append(f"Interests: {interests}.")
+            prompt_parts.append(f"Your interests: {interests}.")
         
         prompt_parts.extend([
-            f"Keep responses under {max_words} words.",
-            "Be natural and conversational.",
-            "Stay in character.",
+            f"\nIMPORTANT RULES:",
+            f"- Respond ONLY as {agent.name}, in first person",
+            f"- Talk about topics related to your job ({agent.job}) and interests",
+            f"- Keep responses under {max_words} words",
+            f"- Do NOT invent other characters or third parties",
+            f"- Do NOT roleplay as narrator or describe actions in parentheses",
+            f"- Stay focused on: {context}",
+            f"- Be natural, conversational, and stay in character",
         ])
         
         return " ".join(prompt_parts)
@@ -198,8 +206,11 @@ class WorldConversationRunner:
                 system_prompt = self._build_agent_prompt(agent, context, max_words)
                 messages[0] = {"role": "system", "content": system_prompt}
                 
+                # Use agent's preferred model if available
+                model_to_use = getattr(agent, 'preferred_model', None) or self.default_model
+                
                 try:
-                    response = self._call_ollama(self.default_model, messages)
+                    response = self._call_ollama(model_to_use, messages)
                     
                     # Log turn
                     turn_record = Turn(
@@ -208,7 +219,7 @@ class WorldConversationRunner:
                         interaction=0,
                         turn=agent_idx,
                         agent_id=agent.id,
-                        model=self.default_model,
+                        model=model_to_use,
                         role="assistant",
                         content=response
                     )

@@ -31,6 +31,7 @@ class Agent(Base):
     job = Column(String(120))
     family_json = Column(Text)
     traits_json = Column(Text)
+    preferred_model = Column(String(120), default="tinyllama:1.1b")  # Ollama model for this agent
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

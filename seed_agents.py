@@ -26,19 +26,29 @@ def seed_agents():
             "name": "Alice",
             "bio": "Software engineer focused on backend systems",
             "job": "Senior Backend Engineer",
+            "preferred_model": "llama3.1:8b",
             "interests": ["Python", "distributed systems", "rock climbing"]
         },
         {
             "name": "Bob",
             "bio": "Product designer who loves user research",
             "job": "UX Designer",
+            "preferred_model": "deepseek-r1:8b",
             "interests": ["design thinking", "coffee", "photography"]
         },
         {
             "name": "Carol",
             "bio": "Data scientist passionate about ML",
             "job": "ML Engineer",
+            "preferred_model": "hermes3:3b",
             "interests": ["machine learning", "running", "cooking"]
+        },
+        {
+            "name": "Dave",
+            "bio": "Frontend developer who crafts beautiful UIs",
+            "job": "Frontend Engineer",
+            "preferred_model": "gemma3:1b",
+            "interests": ["React", "CSS animations", "gaming"]
         },
     ]
     
