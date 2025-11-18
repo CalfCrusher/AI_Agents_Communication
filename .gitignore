@@ -19,5 +19,15 @@ dist/
 transcripts/
 *.log
 
+# Database files (runtime data)
+data/agents.db
+data/test_agents.db
+python/data/agents.db
+python/data/*.db
+*.db
+
+# Generated reports
+reports/
+
 # macOS cruft
 .DS_Store
