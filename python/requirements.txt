@@ -1,5 +1,6 @@
 ollama
 pyyaml
 rich
-
-rich
+sqlalchemy
+sentence-transformers
+numpy

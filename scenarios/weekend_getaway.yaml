@@ -1,0 +1,63 @@
+# Weekend Getaway Scenario
+
+# Scenario overview
+scenario:
+  name: "Weekend Getaway"
+  description: "A relaxing weekend with friends at a park and cafe"
+  duration_days: 1
+  start_hour: 10
+  end_hour: 18
+
+# Agent-specific schedules (optional overrides)
+schedules:
+  - agent_name: "Ava"
+    slots:
+      - hour: 10
+        activity: "coffee_chat"
+        location: "Cafe"
+      - hour: 12
+        activity: "lunch_meeting"
+        location: "Cafe"
+      - hour: 14
+        activity: "reflection"
+        location: "Park"
+      - hour: 16
+        activity: "workout"
+        location: "Park"
+  
+  - agent_name: "Ben"
+    slots:
+      - hour: 10
+        activity: "workout"
+        location: "Gym"
+      - hour: 11
+        activity: "coffee_chat"
+        location: "Cafe"
+      - hour: 13
+        activity: "reflection"
+        location: "Park"
+      - hour: 15
+        activity: "duo_chat"
+        location: "Park"
+
+# Scripted events (forced interactions)
+events:
+  - tick: 3
+    type: "duo_chat"
+    agents: ["Ava", "Ben"]
+    location: "Cafe"
+    prompt: "Discuss weekend plans and recent adventures"
+
+  - tick: 6
+    type: "group_meeting"
+    agents: ["Ava", "Ben"]
+    location: "Park"
+    prompt: "Enjoy outdoor activities together"
+
+# Override default action weights for this scenario
+action_weights:
+  move: 0.10
+  solo_reflection: 0.25
+  duo_chat: 0.35
+  group_meeting: 0.20
+  task_update: 0.10

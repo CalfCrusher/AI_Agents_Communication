@@ -4,7 +4,7 @@ import time
 from contextlib import nullcontext
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict
+from typing import Dict, List, Optional
 import yaml
 import ollama
 from rich.console import Console
@@ -12,6 +12,10 @@ from rich.panel import Panel
 from rich.text import Text
 from rich.live import Live
 from rich.markdown import Markdown
+
+from db.models import Agent
+from db.session import get_session, init_db
+from persistence import PersistenceManager
 
 
 """
@@ -238,6 +242,49 @@ def run_conversation(args):
     memory = args.memory
     stream = args.stream
     delay = args.delay
+    persist = args.persist or bool(config.get("persist", False))
+    default_db_url = config.get("db_url") or "sqlite:///./data/agents.db"
+    db_url = args.db_url or default_db_url
+    agent_a_id = args.agent_a or config.get("agent_a")
+    agent_b_id = args.agent_b or config.get("agent_b")
+    topk_memories = args.topk_memories or int(config.get("topk_memories", 5))
+    topk_recent = args.topk_recent or int(config.get("topk_recent", 3))
+    embed_model = args.embed_model or config.get("embed_model")
+    context_token_cap = int(config.get("context_token_cap", 300))
+
+    persistence: Optional[PersistenceManager] = None
+    agent_bindings: Dict[int, Optional[Agent]] = {}
+    if persist:
+        engine = init_db(db_url)
+        session = get_session(engine=engine)
+        persistence = PersistenceManager(
+            session,
+            console=console,
+            embed_model_name=embed_model,
+            topk_memories=topk_memories,
+            topk_recent=topk_recent,
+            token_cap=context_token_cap,
+        )
+        scenario = config.get("scenario", initial_prompt)
+        persistence.create_conversation(scenario, initial_prompt)
+        for idx, agent_id in enumerate((agent_a_id, agent_b_id)):
+            if not agent_id:
+                continue
+            agent = persistence.load_agent(agent_id)
+            if not agent:
+                console.print(
+                    f"[yellow]Agent id {agent_id} not found. Persona binding for model slot {idx+1} skipped.[/yellow]"
+                )
+                continue
+            persistence.register_binding(idx, agent)
+            agent_bindings[idx] = agent
+            model_name = models[idx] if idx < len(models) else f"slot {idx+1}"
+            console.print(
+                f"[dim]Bound model {model_name} to agent #{agent.id} ({agent.name}).[/dim]"
+            )
+        console.print(
+            f"[dim]Persistence enabled at {db_url} (embed: {embed_model or 'recency-only'}).[/dim]"
+        )
 
     if len(models) < 2:
         raise ValueError("Need at least two models (provide via --models or config)")
@@ -272,6 +319,8 @@ def run_conversation(args):
                 for idx, model in enumerate(models):
                     color = MODEL_COLORS[idx % len(MODEL_COLORS)]
                     mem_slice = history[-memory:] if memory > 0 else []
+                    bound_agent = agent_bindings.get(idx)
+                    context_stats = None
 
                     system_prompt = base_system_prompt
                     if pin_initial:
@@ -285,6 +334,14 @@ def run_conversation(args):
                         system_prompt = f"{system_prompt}\n\n" + "\n".join(pin_sections)
 
                     messages = [{"role": "system", "content": system_prompt}]
+
+                    if persistence and bound_agent:
+                        context_card, context_stats = persistence.build_context_card(bound_agent, current_prompt)
+                        if context_card:
+                            messages.append({"role": "system", "content": context_card})
+                            console.print(
+                                f"[dim]{model} context card: {context_stats['memories']} memories (recent {context_stats['recent']}).[/dim]"
+                            )
 
                     for entry in mem_slice:
                         role = "assistant" if entry["model"] == model else "user"
@@ -303,6 +360,16 @@ def run_conversation(args):
                         user_payload = f"{turn_template}\n{current_prompt}".strip()
 
                     messages.append({"role": "user", "content": user_payload})
+
+                    if persistence:
+                        persistence.record_turn(
+                            round_idx=r,
+                            interaction_idx=interaction,
+                            turn_idx=idx + 1,
+                            model=model,
+                            role="user",
+                            content=user_payload,
+                        )
 
                     panel_title = (
                         f"Round {r} • Interaction {interaction} • Turn {idx+1} • Model [bold]{model}[/bold]"
@@ -389,6 +456,22 @@ def run_conversation(args):
                         )
                     )
 
+                    if persistence:
+                        assistant_turn = persistence.record_turn(
+                            round_idx=r,
+                            interaction_idx=interaction,
+                            turn_idx=idx + 1,
+                            model=model,
+                            role="assistant",
+                            content=response,
+                            agent=bound_agent,
+                        )
+                        if bound_agent:
+                            mem_stats = persistence.process_memories(agent=bound_agent, turn=assistant_turn)
+                            console.print(
+                                f"[dim]{model} extraction: {mem_stats['facts']} facts | {mem_stats['upserts']} upserts | {mem_stats['relationships']} relationship updates.[/dim]"
+                            )
+
                     if sim < 0.25:
                         console.print()
                         console.print(f"[bold red]⚠️ Topic Drift Alert: similarity {sim:.2f}[/bold red]")
@@ -414,6 +497,15 @@ def run_conversation(args):
                     "prompt": "round summary",
                     "response": summary,
                 })
+                if persistence:
+                    persistence.record_turn(
+                        round_idx=r,
+                        interaction_idx=0,
+                        turn_idx=0,
+                        model=moderator_model,
+                        role="moderator",
+                        content=summary,
+                    )
                 time.sleep(delay)
 
         tf.write(f"Conversation complete. Transcript saved to {text_file}\n")
@@ -462,6 +554,13 @@ def build_parser():
     p.add_argument("--json", action="store_true", help="Write JSON transcript")
     p.add_argument("--no-box", action="store_true", help="Disable boxed display")
     p.add_argument("--plain", action="store_true", help="Sanitize markdown (remove asterisks/bold)")
+    p.add_argument("--persist", action="store_true", help="Persist conversations, turns, and memories to a DB")
+    p.add_argument("--db-url", help="Database URL (default sqlite:///./data/agents.db)")
+    p.add_argument("--agent-a", type=int, help="Agent ID bound to the first model")
+    p.add_argument("--agent-b", type=int, help="Agent ID bound to the second model")
+    p.add_argument("--topk-memories", type=int, help="Max retrieved memories per turn (default 5)")
+    p.add_argument("--topk-recent", type=int, help="Pure recency memories mixed into context (default 3)")
+    p.add_argument("--embed-model", help="sentence-transformers model for similarity mixing")
     return p
 
 

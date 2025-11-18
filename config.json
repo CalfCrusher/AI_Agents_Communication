@@ -6,8 +6,13 @@
   "turn_template": "{partner_message}\n\nProvide the next actionable mission-control update or question in <= 20 words. Reference telemetry or systems when possible.",
   "max_response_words": 20,
   "strict_guardrails": true,
-  "guardrail_max_attempts": 3,
+  "guardrail_max_attempts": 5,
   "guardrail_banned_terms": ["instruction", "narrator", "invoice", "accountant", "respond as follows", "please enter"],
   "pin_extra_instructions": "Maintain an objective mission-controller tone. Discuss diagnostics, data, and next steps. Avoid affectionate language or small talk.",
-  "initial_prompt": "Two mission controllers coordinate to diagnose a satellite power anomaly. Stay professional, concise, and focused on actionable steps."
+  "initial_prompt": "Two mission controllers coordinate to diagnose a satellite power anomaly. Stay professional, concise, and focused on actionable steps.",
+  "persist": false,
+  "db_url": "sqlite:///./data/agents.db",
+  "topk_memories": 5,
+  "topk_recent": 3,
+  "context_token_cap": 300
 }

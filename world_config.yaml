@@ -1,0 +1,67 @@
+# World Simulation Configuration
+
+# Default simulation hours
+default_hours:
+  start_hour: 8
+  end_hour: 20
+  tick_minutes: 60
+
+# Action weights for random selection (sum to 1.0)
+action_weights:
+  move: 0.15
+  solo_reflection: 0.20
+  duo_chat: 0.30
+  group_meeting: 0.20
+  task_update: 0.15
+
+# Location graph - travel times in minutes between locations
+location_graph:
+  Home:
+    Office: 30
+    Cafe: 15
+    Gym: 20
+    Park: 10
+  Office:
+    Home: 30
+    Cafe: 10
+    Gym: 25
+    Park: 20
+  Cafe:
+    Home: 15
+    Office: 10
+    Gym: 15
+    Park: 5
+  Gym:
+    Home: 20
+    Office: 25
+    Cafe: 15
+    Park: 10
+  Park:
+    Home: 10
+    Office: 20
+    Cafe: 5
+    Gym: 10
+
+# Activity scheduling preferences by time of day
+time_preferences:
+  morning:  # 6-11
+    - workout
+    - coffee_chat
+    - team_standup
+  midday:  # 11-14
+    - lunch_meeting
+    - work_task
+  afternoon:  # 14-18
+    - work_task
+    - coffee_chat
+    - team_standup
+  evening:  # 18-22
+    - reflection
+    - workout
+
+# Guardrails
+guardrails:
+  max_actions_per_agent_per_day: 12
+  max_concurrent_chats: 2
+  min_cooldown_between_duo_chats_minutes: 60
+  max_location_travel_per_day: 5

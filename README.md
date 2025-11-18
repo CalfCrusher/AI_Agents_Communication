@@ -15,6 +15,7 @@ This project provides a minimal Python setup for letting two (or more) locally i
 - Topic drift heuristic & lightweight sentiment scoring each turn
 - Dual transcript formats: plain text and optional JSON (`--json`)
 - Easily extensible: add analytics, persistence layers, or UI
+- Optional persistent personas + memories when running with `--persist` (SQLite + SQLAlchemy)
 
 ## Prerequisites
 - Ollama installed and running locally (`ollama serve`) – default API: http://localhost:11434
@@ -177,6 +178,122 @@ python python/conversation.py --config config.json --models gemma3:1b phi:2.7b \
   --max-words 40 --memory 8 --moderator kimi-k2-thinking:cloud --delay 5 --plain --stream
 ```
 Use lower memory for ultra-tight exchanges or bump it higher when you want callbacks to earlier ideas (e.g., "You handle Saturday hiking, I book Sunday brunch").
+
+## Persistence, Personas, and Memories
+
+Set `--persist` to log conversations, turns, memories, and relationship strength into a SQLite database (default `sqlite:///./data/agents.db`). SQLAlchemy models live under `python/db`; the orchestration logic is in `python/persistence`.
+
+```bash
+# create the DB + tables (once)
+python -m tools.db --db-url sqlite:///./data/agents.db init
+
+# seed an agent (interests can include scores)
+python -m tools.db --db-url sqlite:///./data/agents.db seed-agent \
+  --name "Ava" \
+  --bio "Warm, curious, minimalist." \
+  --job "Designer" \
+  --interests "hiking:0.9,coffee:0.7" \
+  --family '{"spouse":"Ben","children":["Lia"]}'
+
+# list personas
+python -m tools.db --db-url sqlite:///./data/agents.db list-agents --verbose
+
+# run a persistent session
+python conversation.py --config ../config.json \
+  --models gemma3:1b qwen3:1.7b \
+  --persist --db-url sqlite:///./data/agents.db \
+  --agent-a 1 --agent-b 2 \
+  --topk-memories 5 --topk-recent 3 \
+  --embed-model all-MiniLM-L6-v2
+```
+
+New CLI flags:
+- `--persist`: enable all DB writes (conversations, turns, memories, relationships).
+- `--db-url`: override the SQLAlchemy URL (works with PostgreSQL too).
+- `--agent-a / --agent-b`: pin model slots 1 and 2 to stored personas.
+- `--topk-memories`: max retrieved memories per turn (default 5).
+- `--topk-recent`: number of purely recent memories to force into retrieval (default 3).
+- `--embed-model`: optional `sentence-transformers` model for similarity mixing.
+
+During a persistent run each turn logs how many memories were injected plus how many facts/relationships were extracted. Memories are deduped via hash, confidence is clamped into `[0.2, 0.95]`, and repeated relationship mentions increment strength up to `1.0`.
+
+## World Simulation (Autonomous Agents)
+
+The world simulation extends the persistence layer to create autonomous multi-agent daily life over timeboxed runs. Agents move between locations, perform activities, chat with each other, and write reflections - all recorded as structured events and memories.
+
+### Setup
+
+```bash
+# 1. Initialize base DB + world assets
+python -m tools.db --db-url sqlite:///./data/agents.db init
+python -m tools.db --db-url sqlite:///./data/agents.db seed-agent \
+  --name "Ava" --bio "Designer" --interests "coffee:0.8" \
+  --family '{"spouse":"Ben"}'
+python -m tools.db --db-url sqlite:///./data/agents.db seed-agent \
+  --name "Ben" --bio "Developer" --interests "cycling:0.9"
+python -m tools.db --db-url sqlite:///./data/agents.db world-init
+
+# 2. Simulate a single 12-hour day for agents
+python python/world.py --days 1 --agents 2 --tick-minutes 60 \
+  --start-hour 8 --end-hour 20 --persist \
+  --db-url sqlite:///./data/agents.db \
+  --max-concurrent-chats 1 --report-format both
+
+# 3. Inspect outputs
+ls reports/
+sqlite3 data/agents.db 'SELECT count(*) FROM world_events;'
+```
+
+### World Simulation CLI Flags
+
+- `--days`: Number of days to simulate (default: 1)
+- `--agents`: Maximum number of agents to include (default: all)
+- `--tick-minutes`: Minutes per simulation tick (default: 60)
+- `--start-hour`: Start hour of simulation day (0-23, default: 8)
+- `--end-hour`: End hour of simulation day (0-23, default: 20)
+- `--persist / --no-persist`: Enable/disable DB writes (default: enabled)
+- `--dry-run`: Simulate without LLM calls, log planned actions only
+- `--max-concurrent-chats`: Limit simultaneous LLM calls (default: 1)
+- `--report-format`: Output format - `markdown`, `json`, or `both` (default: markdown)
+- `--config`: Path to world configuration YAML (default: world_config.yaml)
+
+### World Configuration
+
+The `world_config.yaml` file defines:
+- **Default hours**: Simulation time window and tick duration
+- **Action weights**: Probability distribution for action selection
+- **Location graph**: Travel times between locations in minutes
+- **Time preferences**: Preferred activities by time of day
+- **Guardrails**: Max actions per agent, cooldown periods, travel limits
+
+### Available Actions
+
+The simulation includes five action types:
+- **move**: Navigate between locations (Home, Office, Cafe, Gym, Park)
+- **solo_reflection**: Personal reflection and journaling
+- **duo_chat**: Two-agent conversation (can integrate with conversation.py)
+- **group_meeting**: Multi-agent standup or discussion
+- **task_update**: Work task progress
+
+### Reports
+
+Daily reports are generated in the `reports/` directory containing:
+- Event counts by activity type and location
+- Per-agent action breakdowns
+- Memory and relationship statistics
+- Formatted as Markdown and/or JSON
+
+### Example Scenarios
+
+Pre-configured scenarios can override default settings:
+
+```bash
+# Run the weekend getaway scenario
+python python/world.py --config scenarios/weekend_getaway.yaml \
+  --days 1 --agents 2 --persist
+```
+
+See `scenarios/weekend_getaway.yaml` for an example scenario configuration.
 
 ## Transcript Output
 - Text: `transcripts/conversation_<timestamp>.txt`
