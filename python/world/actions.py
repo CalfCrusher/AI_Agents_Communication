@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from db.models import Agent, Activity, Location, WorldEvent, Memory
 from world.environment import EnvironmentService
+from world.conversation_runner import WorldConversationRunner
 
 
 class BaseAction(ABC):
@@ -29,6 +30,7 @@ class BaseAction(ABC):
     def __init__(self, session: Session, env_service: EnvironmentService):
         self.session = session
         self.env = env_service
+        self.conv_runner = WorldConversationRunner(session)
 
     @abstractmethod
     def execute(
@@ -180,9 +182,18 @@ class DuoChatAction(BaseAction):
             partners = self.session.query(Agent).filter(Agent.id != agent.id).limit(3).all()
         
         if not partners:
-            return {"action": "duo_chat", "status": "no_partner"}
+            return {"action": "duo_chat", "status": "no_partner", "day_label": day_label}
         
         partner = random.choice(partners)
+        
+        # Generate conversation topics based on interests
+        topics = [
+            "recent experiences and activities",
+            "weekend plans",
+            "work and projects",
+            "hobbies and interests",
+        ]
+        topic = random.choice(topics)
         
         metadata = {
             "action": "duo_chat",
@@ -191,11 +202,31 @@ class DuoChatAction(BaseAction):
             "location": location.name if location else "unknown",
             "hour": hour,
             "day_label": day_label,
+            "topic": topic,
         }
         
         if not dry_run:
+            print(f"    🗣️  {agent.name} and {partner.name} chatting about {topic}...")
+            
+            # Run actual Ollama conversation!
+            try:
+                conversation = self.conv_runner.run_duo_chat(
+                    agent_a=agent,
+                    agent_b=partner,
+                    context=f"Have a brief friendly chat about {topic}",
+                    turns=2,  # 2 exchanges (4 total messages)
+                    max_words=40
+                )
+                
+                metadata["conversation"] = conversation
+                metadata["num_turns"] = len(conversation)
+                print(f"    ✅ {len(conversation)} messages exchanged")
+                
+            except Exception as e:
+                print(f"    ❌ Conversation error: {e}")
+                metadata["error"] = str(e)
+            
             self.log_event(agent, tick_idx, activity, location, metadata)
-            # TODO: In future, integrate with conversation.py for actual LLM chat
         
         return metadata
 
@@ -217,19 +248,39 @@ class GroupStandupAction(BaseAction):
         # Find agents at same location
         if location:
             agents_here = self.env.get_agents_at_location(location)
-            participants = [a.name for a in agents_here]
+            participants = agents_here
         else:
-            participants = [agent.name]
+            participants = [agent]
         
         metadata = {
             "action": "group_standup",
-            "participants": participants,
+            "participants": [a.name for a in participants],
             "location": location.name if location else "unknown",
             "hour": hour,
             "day_label": day_label,
         }
         
         if not dry_run:
+            # Only run group chat if there are 2+ agents
+            if len(participants) >= 2:
+                print(f"    👥 Group standup with {', '.join(a.name for a in participants)}...")
+                
+                try:
+                    conversation = self.conv_runner.run_group_chat(
+                        agents=list(participants),
+                        context="Quick team standup: share what you're working on",
+                        turns_per_agent=1,
+                        max_words=30
+                    )
+                    
+                    metadata["conversation"] = conversation
+                    metadata["num_turns"] = len(conversation)
+                    print(f"    ✅ {len(conversation)} updates shared")
+                    
+                except Exception as e:
+                    print(f"    ❌ Standup error: {e}")
+                    metadata["error"] = str(e)
+            
             self.log_event(agent, tick_idx, activity, location, metadata)
         
         return metadata
