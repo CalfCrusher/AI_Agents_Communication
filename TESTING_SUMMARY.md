@@ -5,8 +5,9 @@
 ## Test Environment
 - Python 3.14 with venv
 - All dependencies installed from requirements.txt
-- SQLite database: `data/test_agents.db`
-- Test agents: Ava (UX Designer) and Ben (Software Engineer)
+- SQLite database: `python/data/agents.db`
+- Ollama server: Running locally with tinyllama:1.1b model
+- Test agents: Alice (Backend Engineer), Bob (UX Designer), Carol (ML Engineer)
 
 ## Tests Executed
 
@@ -25,8 +26,9 @@ All 4 unit tests passed:
   - 6 activities (work_task, coffee_chat, lunch_meeting, workout, reflection, team_standup)
 
 ### ✅ Agent Management
-- Successfully seeded 2 test agents with bio, job, interests, and family data
-- `list-agents --verbose` displays all agent information correctly
+- Successfully seeded 3 agents with bio, job, and interests
+- Agent personas include varied backgrounds (engineering, design, data science)
+- `seed_agents.py` script creates agents with proper Interest relationships
 
 ### ✅ World Scheduler - Dry Run Mode
 - Ran 4-tick simulation (8-12 hours) without errors
@@ -43,9 +45,38 @@ All 4 unit tests passed:
 ### ✅ All Action Types Verified
 1. **MoveAction**: Agents move between locations
 2. **SoloReflectionAction**: Creates memories in database
-3. **DuoChatAction**: Pairs agents for conversations
-4. **GroupStandupAction**: Multi-agent meetings
+3. **DuoChatAction**: **NOW USES REAL OLLAMA LLM** - Pairs agents for actual conversations
+4. **GroupStandupAction**: **NOW USES REAL OLLAMA LLM** - Multi-agent meetings with LLM-generated updates
 5. **TaskUpdateAction**: Work task tracking
+
+### ✅ Ollama LLM Integration Testing
+**Date: November 18, 2025 12:44 PM**
+
+- **WorldConversationRunner** class created to bridge world simulation and Ollama API
+- **Real LLM conversations** tested with tinyllama:1.1b model
+- **1-day simulation results**:
+  - Total events: 19
+  - DuoChatAction conversations: 4
+  - GroupStandupAction meetings: 4
+  - Total LLM-generated turns saved: 16 (verified in database)
+  - Conversations table: 4 records
+  - Turns table: All turns include agent_id, model, role, content
+  
+- **Conversation Quality**:
+  - Agents use persona-based prompts (bio, job, interests)
+  - LLM responses contextual to agent backgrounds
+  - Example: Bob (UX Designer) discussing design topics with Alice (Backend Engineer)
+  - Error handling: Graceful fallback if Ollama unavailable
+  
+- **Database Persistence**:
+  - All conversations saved to `conversations` table with scenario
+  - All LLM turns saved to `turns` table with full content
+  - Turn tracking includes: conversation_id, round, interaction, turn, agent_id, model, role, content
+  
+- **Performance**:
+  - 1-day simulation (12 ticks) completed in ~120 seconds
+  - Average ~10 seconds per LLM conversation (2 turns each)
+  - No errors or crashes during extended simulation
 
 ### ✅ Reporting Service
 - Markdown reports generated successfully
