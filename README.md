@@ -229,6 +229,30 @@ ollama serve  # Keep this running in a separate terminal
 
 Agents use their personas (bio, job, interests) to have contextual conversations via Ollama. Default model: `tinyllama:1.1b` (fast, small). You can use any locally pulled model.
 
+### Resetting the World Simulation
+
+To start fresh or fix data issues:
+
+```bash
+# Option 1: Delete and reinitialize database
+rm -f data/agents.db python/data/agents.db
+python -m tools.db init
+python -m tools.db world-init
+python seed_agents.py
+
+# Option 2: Clear only world data (keeps agent personas)
+sqlite3 python/data/agents.db "DELETE FROM world_events;"
+sqlite3 python/data/agents.db "DELETE FROM conversations;"
+sqlite3 python/data/agents.db "DELETE FROM turns;"
+sqlite3 python/data/agents.db "DELETE FROM memories;"
+
+# Option 3: Reset specific agents
+sqlite3 python/data/agents.db "DELETE FROM agents WHERE name='Alice';"
+# Then re-seed with seed_agents.py
+```
+
+**Warning**: Deleting `conversations` and `turns` will remove all LLM conversation history. Back up data before resetting if needed.
+
 ### Quick Start
 
 ```bash
