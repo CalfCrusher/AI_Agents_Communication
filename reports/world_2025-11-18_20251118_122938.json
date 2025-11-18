@@ -1,0 +1,35 @@
+{
+  "day_label": "2025-11-18",
+  "summary": "Day 2025-11-18 Summary:\n- Total events: 7\n- Active agents: 2\n- Memories recorded: 2\n- Relationships: 0 (0 strong)\n\nTop activities:\n  - move: 4\n  - solo_reflection: 2\n  - task_update: 1\n\nMost visited locations:\n  - Gym: 2\n  - Office: 1\n  - Cafe: 1",
+  "metrics": {
+    "total_events": 7,
+    "activities": {
+      "solo_reflection": 2,
+      "move": 4,
+      "task_update": 1
+    },
+    "locations": {
+      "Office": 1,
+      "Cafe": 1,
+      "Gym": 2
+    },
+    "agent_actions": {
+      "Ben": [
+        "solo_reflection",
+        "move",
+        "move",
+        "move"
+      ],
+      "Ava": [
+        "task_update",
+        "solo_reflection",
+        "move"
+      ]
+    },
+    "memory_count": 2,
+    "relationship_count": 0,
+    "strong_relationship_count": 0,
+    "agents_active": 2
+  },
+  "generated_at": "2025-11-18T12:29:38.850083"
+}

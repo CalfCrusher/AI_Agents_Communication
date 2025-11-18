@@ -18,7 +18,7 @@ from typing import Dict, List, Optional
 
 import yaml
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 PYTHON_DIR = PROJECT_ROOT / "python"
 if str(PYTHON_DIR) not in sys.path:
     sys.path.insert(0, str(PYTHON_DIR))

@@ -97,6 +97,7 @@ class MoveAction(BaseAction):
             "from": current_loc.name if current_loc else "unknown",
             "to": target.name,
             "hour": hour,
+            "day_label": day_label,
         }
         
         if not dry_run:
@@ -135,6 +136,7 @@ class SoloReflectionAction(BaseAction):
             "prompt": random.choice(prompts),
             "hour": hour,
             "location": location.name if location else "unknown",
+            "day_label": day_label,
         }
         
         if not dry_run:
@@ -188,6 +190,7 @@ class DuoChatAction(BaseAction):
             "agent_b": partner.name,
             "location": location.name if location else "unknown",
             "hour": hour,
+            "day_label": day_label,
         }
         
         if not dry_run:
@@ -223,6 +226,7 @@ class GroupStandupAction(BaseAction):
             "participants": participants,
             "location": location.name if location else "unknown",
             "hour": hour,
+            "day_label": day_label,
         }
         
         if not dry_run:
@@ -258,6 +262,7 @@ class TaskUpdateAction(BaseAction):
             "task": random.choice(tasks),
             "location": location.name if location else "unknown",
             "hour": hour,
+            "day_label": day_label,
         }
         
         if not dry_run:
