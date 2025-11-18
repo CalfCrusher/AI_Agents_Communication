@@ -69,7 +69,7 @@ class WorldConversationRunner:
         
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"You are {agent_a.name}. Start a brief conversation about: {context}"}
+            {"role": "user", "content": f"Start a brief, natural conversation about: {context}"}
         ]
 
         conversation_history = []
@@ -113,8 +113,12 @@ class WorldConversationRunner:
                 # Update system prompt for new speaker
                 system_prompt = self._build_agent_prompt(current_agent, context, max_words)
                 messages.append({
+                    "role": "system",
+                    "content": system_prompt,
+                })
+                messages.append({
                     "role": "user",
-                    "content": f"You are {current_agent.name}. Respond to what {other_agent.name} just said."
+                    "content": f"Respond briefly and naturally to what {other_agent.name} just said. Stay on topic: {context}."
                 })
 
             except Exception as e:
