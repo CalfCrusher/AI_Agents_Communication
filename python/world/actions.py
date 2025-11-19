@@ -145,16 +145,22 @@ class SoloReflectionAction(BaseAction):
             self.log_event(agent, tick_idx, activity, location, metadata)
             
             # Optionally create a memory
-            memory = Memory(
-                agent_id=agent.id,
-                kind="reflection",
-                text=f"{agent.name} spent time {metadata['prompt']}",
-                confidence=0.6,
-                normalized_hash=f"reflection_{tick_idx}_{agent.id}",
-                metadata_json=json.dumps({"tick": tick_idx, "day": day_label})
-            )
-            self.session.add(memory)
-            self.session.commit()
+            # Use day_label in hash to avoid collisions across days
+            # Check for existence to avoid collisions on re-runs
+            hash_key = f"reflection_{day_label}_{tick_idx}_{agent.id}"
+            existing = self.session.query(Memory).filter_by(normalized_hash=hash_key).first()
+            
+            if not existing:
+                memory = Memory(
+                    agent_id=agent.id,
+                    kind="reflection",
+                    text=f"{agent.name} spent time {metadata['prompt']}",
+                    confidence=0.6,
+                    normalized_hash=hash_key,
+                    metadata_json=json.dumps({"tick": tick_idx, "day": day_label})
+                )
+                self.session.add(memory)
+                self.session.commit()
         
         return metadata
 
