@@ -98,7 +98,8 @@ def get_world_state():
                         conversation = meta.get("conversation", [])
                         if conversation:
                             # Get the last message spoken by THIS agent
-                            my_msgs = [m for m in conversation if m.get("role") == name]
+                            # conversation_runner returns keys: 'agent', 'content', 'turn'
+                            my_msgs = [m for m in conversation if m.get("agent") == name]
                             if my_msgs:
                                 last_msg = my_msgs[-1].get("content", "...")
                             else:
