@@ -93,6 +93,18 @@ def get_world_state():
                     if action == "duo_chat":
                         partner = meta.get("agent_b") if meta.get("agent_a") == name else meta.get("agent_a")
                         status = f"Chatting w/ {partner}" if partner else "Chatting"
+                        
+                        # Extract conversation if available
+                        conversation = meta.get("conversation", [])
+                        if conversation:
+                            # Get the last message spoken by THIS agent
+                            my_msgs = [m for m in conversation if m.get("role") == name]
+                            if my_msgs:
+                                last_msg = my_msgs[-1].get("content", "...")
+                            else:
+                                last_msg = "..."
+                        else:
+                            last_msg = None
                     elif action == "group_standup":
                         status = "Meeting"
                     elif action == "move":
@@ -114,7 +126,8 @@ def get_world_state():
                 "job": job,
                 "location": loc_name,
                 "coordinates": coords,
-                "status": status
+                "status": status,
+                "last_message": locals().get("last_msg", None)
             })
             
         return {"agents": agents}

@@ -5,10 +5,46 @@
     <title>Agent Sandbox Viewer</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
     <style>
-        body { margin: 0; background: #1e1e1e; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        #ui-layer { position: absolute; top: 20px; left: 20px; color: white; pointer-events: none; }
-        h1 { margin: 0; font-size: 24px; text-shadow: 2px 2px 0 #000; }
-        .status-box { background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; display: inline-block; margin-top: 10px; }
+        body { margin: 0; background: #121212; overflow: hidden; font-family: 'Courier New', Courier, monospace; color: #eee; }
+        
+        #ui-layer { position: absolute; top: 20px; left: 20px; pointer-events: none; z-index: 10; }
+        h1 { margin: 0; font-size: 28px; text-transform: uppercase; letter-spacing: 2px; color: #00ffcc; text-shadow: 0 0 10px #00ffcc; }
+        
+        .status-box { 
+            background: rgba(0, 20, 40, 0.8); 
+            padding: 15px; 
+            border: 1px solid #00ffcc; 
+            border-radius: 4px; 
+            display: inline-block; 
+            margin-top: 10px; 
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.2);
+        }
+
+        #chat-log {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 350px;
+            height: 80vh;
+            background: rgba(0, 10, 20, 0.9);
+            border: 1px solid #333;
+            border-left: 4px solid #00ffcc;
+            padding: 10px;
+            overflow-y: auto;
+            font-size: 12px;
+            pointer-events: auto;
+            z-index: 10;
+        }
+        
+        .log-entry { margin-bottom: 8px; border-bottom: 1px solid #333; padding-bottom: 4px; }
+        .log-time { color: #666; font-size: 10px; }
+        .log-agent { color: #00ffcc; font-weight: bold; }
+        .log-msg { color: #ddd; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #00ffcc; border-radius: 4px; }
     </style>
 </head>
 <body>
@@ -20,13 +56,17 @@
     </div>
 </div>
 
+<div id="chat-log">
+    <div style="text-align: center; color: #666; padding: 10px;">-- Live Comms Log --</div>
+</div>
+
 <script>
 const config = {
     type: Phaser.AUTO,
     width: window.innerWidth,
     height: window.innerHeight,
-    pixelArt: true, // Essential for the pixel art look
-    backgroundColor: '#1e1e1e',
+    pixelArt: true,
+    backgroundColor: '#121212',
     scene: { preload: preload, create: create, update: update }
 };
 
@@ -35,30 +75,30 @@ const game = new Phaser.Game(config);
 // Isometric Configuration
 const TILE_W = 64;
 const TILE_H = 32;
-const MAP_SIZE = 6; 
+const MAP_SIZE = 8; 
 const OFFSET_X = window.innerWidth / 2;
-const OFFSET_Y = 150;
+const OFFSET_Y = 100;
 
 let agentSprites = {};
+let lastProcessedMsgs = {}; // Track last msg per agent to avoid dupes in log
 
 function preload() {
-    // Load assets from Phaser labs (internet required)
-    // You can download these images to an 'assets' folder for offline use
     this.load.image('tile', 'https://labs.phaser.io/assets/tilemaps/iso/tile.png');
+    this.load.image('block', 'https://labs.phaser.io/assets/sprites/block.png'); // Use block for walls?
     this.load.image('agent', 'https://labs.phaser.io/assets/sprites/phaser-dude.png');
 }
 
 function create() {
     // 1. Draw the Environment
     const locations = {
-        "0,0": { color: 0xe74c3c, name: "Home" },   // Red
-        "4,0": { color: 0x3498db, name: "Office" }, // Blue
-        "4,4": { color: 0xf1c40f, name: "Cafe" },   // Yellow
-        "0,4": { color: 0x2ecc71, name: "Gym" },    // Green
-        "2,2": { color: 0x9b59b6, name: "Park" }    // Purple
+        "0,0": { color: 0xe74c3c, name: "Home" },   
+        "4,0": { color: 0x3498db, name: "Office" }, 
+        "4,4": { color: 0xf1c40f, name: "Cafe" },   
+        "0,4": { color: 0x2ecc71, name: "Gym" },    
+        "2,2": { color: 0x9b59b6, name: "Park" }    
     };
 
-    // Draw Grid
+    // Draw Grid Floor
     for (let x = 0; x < MAP_SIZE; x++) {
         for (let y = 0; y < MAP_SIZE; y++) {
             const isoX = (x - y) * TILE_W + OFFSET_X;
@@ -69,9 +109,20 @@ function create() {
             let key = `${x},${y}`;
             if (locations[key]) {
                 tile.setTint(locations[key].color);
-                this.add.text(isoX, isoY + 10, locations[key].name, { fontSize: '12px', color: '#fff', stroke: '#000', strokeThickness: 2 }).setOrigin(0.5);
+                // Add a "wall" or block to make it look like a building
+                // let block = this.add.image(isoX, isoY - 16, 'tile');
+                // block.setTint(locations[key].color);
+                // block.setAlpha(0.7);
+                
+                this.add.text(isoX, isoY + 10, locations[key].name, { 
+                    fontSize: '14px', 
+                    fontFamily: 'Courier New',
+                    color: '#fff', 
+                    backgroundColor: '#000',
+                    padding: { x: 4, y: 2 }
+                }).setOrigin(0.5);
             } else {
-                tile.setTint(0x95a5a6); // Grey floor
+                tile.setTint(0x444444); // Darker floor
             }
         }
     }
@@ -80,9 +131,7 @@ function create() {
     this.time.addEvent({ delay: 1000, callback: fetchState, callbackScope: this, loop: true });
 }
 
-function update() {
-    // Phaser handles animations automatically
-}
+function update() {}
 
 async function fetchState() {
     const statusSpan = document.getElementById('connection-status');
@@ -95,7 +144,7 @@ async function fetchState() {
             statusSpan.style.color = "orange";
         } else {
             statusSpan.innerText = "LIVE";
-            statusSpan.style.color = "#2ecc71";
+            statusSpan.style.color = "#00ffcc";
             updateAgents(data.agents);
         }
     } catch (e) { 
@@ -105,6 +154,8 @@ async function fetchState() {
 }
 
 function updateAgents(agents) {
+    const scene = game.scene.scenes[0];
+    
     // Remove agents who are gone
     const currentNames = agents.map(a => a.name);
     Object.keys(agentSprites).forEach(name => {
@@ -119,15 +170,13 @@ function updateAgents(agents) {
         const gridX = agent.coordinates.x;
         const gridY = agent.coordinates.y;
         
-        // Convert Grid -> Screen Coordinates
-        // -30 Y offset to make them stand ON the tile
         const targetX = (gridX - gridY) * TILE_W + OFFSET_X;
-        const targetY = (gridX + gridY) * TILE_H + OFFSET_Y - 20;
+        const targetY = (gridX + gridY) * TILE_H + OFFSET_Y - 25;
 
         if (agentSprites[agent.name]) {
-            // MOVEMENT: Smoothly slide existing agent
+            // MOVEMENT
             const entity = agentSprites[agent.name];
-            game.scene.scenes[0].tweens.add({
+            scene.tweens.add({
                 targets: entity.container,
                 x: targetX,
                 y: targetY,
@@ -136,29 +185,103 @@ function updateAgents(agents) {
             });
             
             // Update Label
-            entity.label.setText(`${agent.name}\n<${agent.status}>`);
+            entity.label.setText(`${agent.name}\n[${agent.status}]`);
             
+            // Update Chat Bubble
+            updateChatBubble(entity, agent);
+
         } else {
-            // SPAWN: Create new agent group
-            const scene = game.scene.scenes[0];
+            // SPAWN
             const container = scene.add.container(targetX, targetY);
             
             const sprite = scene.add.image(0, 0, 'agent');
-            sprite.setTint(0xffffff);
+            sprite.setTint(0x00ffcc); // Cyberpunk cyan
             
-            const label = scene.add.text(0, -40, `${agent.name}\n<${agent.status}>`, { 
+            const label = scene.add.text(0, -45, `${agent.name}\n[${agent.status}]`, { 
                 fontSize: '12px', 
+                fontFamily: 'Courier New',
                 fill: '#fff', 
                 align: 'center',
                 stroke: '#000',
-                strokeThickness: 3
+                strokeThickness: 4
             }).setOrigin(0.5);
             
-            container.add([sprite, label]);
+            // Chat Bubble Container
+            const bubble = scene.add.container(0, -80);
+            const bubbleBg = scene.add.graphics();
+            const bubbleText = scene.add.text(0, 0, "", { 
+                fontSize: '12px', 
+                color: '#000', 
+                align: 'center',
+                wordWrap: { width: 150 }
+            }).setOrigin(0.5);
             
-            agentSprites[agent.name] = { container, sprite, label };
+            bubble.add([bubbleBg, bubbleText]);
+            bubble.visible = false; // Hide initially
+            
+            container.add([sprite, label, bubble]);
+            
+            agentSprites[agent.name] = { container, sprite, label, bubble, bubbleBg, bubbleText };
+            
+            // Initial update
+            updateChatBubble(agentSprites[agent.name], agent);
         }
     });
+}
+
+function updateChatBubble(entity, agent) {
+    const msg = agent.last_message;
+    
+    if (msg && msg !== "..." && msg !== lastProcessedMsgs[agent.name]) {
+        // New message!
+        lastProcessedMsgs[agent.name] = msg;
+        
+        // 1. Show Bubble
+        entity.bubbleText.setText(msg);
+        const bounds = entity.bubbleText.getBounds();
+        const pad = 10;
+        
+        entity.bubbleBg.clear();
+        entity.bubbleBg.fillStyle(0xffffff, 0.9);
+        entity.bubbleBg.fillRoundedRect(
+            -bounds.width/2 - pad, 
+            -bounds.height/2 - pad, 
+            bounds.width + pad*2, 
+            bounds.height + pad*2, 
+            8
+        );
+        
+        entity.bubble.visible = true;
+        entity.bubble.alpha = 1;
+        
+        // Fade out after 5 seconds
+        game.scene.scenes[0].tweens.add({
+            targets: entity.bubble,
+            alpha: 0,
+            delay: 4000,
+            duration: 1000,
+            onComplete: () => { entity.bubble.visible = false; }
+        });
+        
+        // 2. Add to Side Log
+        addToLog(agent.name, msg);
+    }
+}
+
+function addToLog(name, msg) {
+    const log = document.getElementById('chat-log');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    
+    const time = new Date().toLocaleTimeString();
+    entry.innerHTML = `
+        <div class="log-time">${time}</div>
+        <span class="log-agent">${name}:</span> 
+        <span class="log-msg">${msg}</span>
+    `;
+    
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
 }
 </script>
 </body>
