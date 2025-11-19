@@ -3,6 +3,7 @@ import json
 import os
 import sys
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -29,6 +30,14 @@ for path in POSSIBLE_DB_PATHS:
     if os.path.exists(path):
         DB_PATH = path
         break
+
+# Mount visualizer directory to serve HTML/JS
+VISUALIZER_DIR = os.path.join(BASE_DIR, "../visualizer")
+if os.path.exists(VISUALIZER_DIR):
+    app.mount("/visualizer", StaticFiles(directory=VISUALIZER_DIR), name="visualizer")
+    print(f"✅ Serving visualizer at http://localhost:8000/visualizer/index.html")
+else:
+    print(f"⚠️  Visualizer directory not found at {VISUALIZER_DIR}")
 
 # Isometric Grid Mapping (Hardcoded coordinates for the visualizer)
 LOCATION_MAP = {
