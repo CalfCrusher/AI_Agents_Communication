@@ -75,7 +75,27 @@ def get_world_state():
         
         cursor.execute(query)
         rows = cursor.fetchall()
+        
+        # Fetch recent chat history (global)
+        # We join with agents to get the name
+        history_query = """
+        SELECT a.name, t.content, t.created_at 
+        FROM turns t
+        JOIN agents a ON t.agent_id = a.id
+        ORDER BY t.created_at DESC LIMIT 20
+        """
+        cursor.execute(history_query)
+        history_rows = cursor.fetchall()
+        
         conn.close()
+        
+        chat_history = []
+        for hr in history_rows:
+            chat_history.append({
+                "agent": hr[0],
+                "message": hr[1],
+                "time": hr[2]
+            })
         
         agents = []
         for r in rows:
@@ -131,7 +151,7 @@ def get_world_state():
                 "last_message": locals().get("last_msg", None)
             })
             
-        return {"agents": agents}
+        return {"agents": agents, "chat_history": chat_history}
     
     except Exception as e:
         return {"error": str(e), "agents": []}

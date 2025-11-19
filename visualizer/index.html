@@ -2,226 +2,288 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>NEON AGENT CITY</title>
+    <title>Habbo Agent Hotel</title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <style>
         body { 
             margin: 0; 
-            background: #050510; 
+            background: #1a1a1a; 
             overflow: hidden; 
-            font-family: 'Press Start 2P', cursive; 
-            color: #00ffcc; 
+            font-family: 'VT323', monospace; 
+            image-rendering: pixelated;
         }
         
-        /* CRT Scanline Effect */
-        body::after {
-            content: " ";
-            display: block;
+        /* Habbo-style UI Container */
+        #ui-container {
             position: absolute;
-            top: 0; left: 0; bottom: 0; right: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 120px;
+            background: #dedede;
+            border-top: 4px solid #fff;
+            box-shadow: 0 -4px 0 #999;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            box-sizing: border-box;
             z-index: 100;
-            background-size: 100% 2px, 3px 100%;
-            pointer-events: none;
         }
 
-        #ui-layer { 
-            position: absolute; 
-            top: 20px; 
-            left: 20px; 
-            pointer-events: none; 
-            z-index: 10; 
-            text-shadow: 2px 2px 0px #ff00ff;
-        }
-        
-        h1 { 
-            margin: 0; 
-            font-size: 20px; 
-            letter-spacing: 2px; 
-            color: #fff; 
+        .habbo-btn {
+            background: #efefef;
+            border: 2px solid #fff;
+            border-right-color: #999;
+            border-bottom-color: #999;
+            padding: 10px 20px;
+            font-family: 'VT323', monospace;
+            font-size: 24px;
+            color: #000;
+            margin-right: 10px;
+            cursor: pointer;
             text-transform: uppercase;
         }
-        
-        .status-box { 
-            background: rgba(0, 0, 0, 0.8); 
-            padding: 10px; 
-            border: 2px solid #00ffcc; 
-            display: inline-block; 
-            margin-top: 15px; 
-            box-shadow: 4px 4px 0px #005544;
-            font-size: 10px;
+        .habbo-btn:active {
+            border: 2px solid #999;
+            border-right-color: #fff;
+            border-bottom-color: #fff;
+            transform: translate(2px, 2px);
         }
 
-        #chat-log {
+        #chat-history {
             position: absolute;
             top: 20px;
             right: 20px;
-            width: 400px;
-            height: 85vh;
-            background: rgba(0, 0, 0, 0.9);
-            border: 2px solid #ff00ff;
-            padding: 15px;
+            width: 300px;
+            height: 400px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #000;
+            border-radius: 8px;
+            padding: 10px;
             overflow-y: auto;
-            font-size: 10px;
-            pointer-events: auto;
-            z-index: 10;
-            box-shadow: -4px 4px 0px #550055;
-            font-family: 'Courier New', Courier, monospace; /* Better readability for long text */
+            font-family: 'Verdana', sans-serif;
+            font-size: 11px;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.2);
+            z-index: 90;
         }
+
+        .chat-bubble {
+            background: #fff;
+            border-radius: 15px;
+            padding: 5px 10px;
+            margin-bottom: 5px;
+            border: 1px solid #ccc;
+            position: relative;
+            box-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+        .chat-bubble b { color: #d35400; }
         
-        .log-header {
-            font-family: 'Press Start 2P', cursive;
-            text-align: center;
-            color: #ff00ff;
-            border-bottom: 2px dashed #ff00ff;
-            padding-bottom: 10px;
-            margin-bottom: 10px;
+        #room-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: #1a6fa3;
+            color: white;
+            padding: 10px;
+            border: 2px solid #fff;
+            border-radius: 4px;
+            font-family: 'Verdana', sans-serif;
+            font-size: 12px;
+            box-shadow: 2px 2px 0 #000;
         }
-
-        .log-entry { 
-            margin-bottom: 12px; 
-            border-left: 2px solid #333; 
-            padding-left: 8px; 
-            animation: fadeIn 0.3s ease-in-out;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateX(10px); }
-            to { opacity: 1; transform: translateX(0); }
-        }
-
-        .log-time { color: #666; font-size: 9px; margin-bottom: 2px; }
-        .log-agent { color: #00ffcc; font-weight: bold; text-transform: uppercase; }
-        .log-msg { color: #ddd; display: block; margin-top: 2px; line-height: 1.4; }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 10px; }
-        ::-webkit-scrollbar-track { background: #000; border-left: 1px solid #333; }
-        ::-webkit-scrollbar-thumb { background: #ff00ff; border: 1px solid #fff; }
     </style>
 </head>
 <body>
 
-<div id="ui-layer">
-    <h1>NEON CITY // AGENT NET</h1>
-    <div class="status-box">
-        SYSTEM: <span id="connection-status" style="color: yellow;">CONNECTING...</span>
-    </div>
+<div id="room-info">
+    <b>Agent Hotel Lobby</b><br>
+    Occupants: <span id="occupant-count">0</span>
 </div>
 
-<div id="chat-log">
-    <div class="log-header">COMMUNICATION UPLINK</div>
+<div id="chat-history">
+    <div style="text-align: center; color: #666; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 5px;">Chat History</div>
+    <div id="chat-content"></div>
+</div>
+
+<div id="ui-container">
+    <div class="habbo-btn">Navigator</div>
+    <div class="habbo-btn">Catalog</div>
+    <div class="habbo-btn">Inventory</div>
+    <div style="flex-grow: 1;"></div>
+    <div style="font-size: 20px; color: #333;">System: <span id="sys-status">ONLINE</span></div>
 </div>
 
 <script>
 const config = {
     type: Phaser.AUTO,
     width: window.innerWidth,
-    height: window.innerHeight,
+    height: window.innerHeight - 120, // Leave room for UI
     pixelArt: true,
-    backgroundColor: '#050510',
+    backgroundColor: '#95a5a6', // Grey background like outside the room
     scene: { preload: preload, create: create, update: update }
 };
 
 const game = new Phaser.Game(config);
 
-// Isometric Configuration
+// Isometric Config
 const TILE_W = 64;
 const TILE_H = 32;
-const MAP_SIZE = 8; 
+const MAP_SIZE = 10; 
 const OFFSET_X = window.innerWidth / 2;
-const OFFSET_Y = 150;
+const OFFSET_Y = 100;
 
 let agentSprites = {};
-let lastProcessedMsgs = {}; 
+let lastChatTime = "";
 
 function preload() {
-    // Using simple shapes generated at runtime would be better, but let's stick to assets for reliability
-    this.load.image('tile', 'https://labs.phaser.io/assets/tilemaps/iso/tile.png');
-    this.load.image('agent', 'https://labs.phaser.io/assets/sprites/phaser-dude.png');
+    // We will generate textures procedurally to avoid external dependency issues
+    // and to get that specific "Habbo" look
 }
 
 function create() {
-    // 1. Draw the Environment
-    const locations = {
-        "0,0": { color: 0xff0055, name: "HOME" },   
-        "4,0": { color: 0x00aaff, name: "OFFICE" }, 
-        "4,4": { color: 0xffaa00, name: "CAFE" },   
-        "0,4": { color: 0x00ff55, name: "GYM" },    
-        "2,2": { color: 0xaa00ff, name: "PARK" }    
-    };
+    // 1. Generate Textures
+    generateTextures(this);
 
-    // Create a group for the map to sort it properly
-    const mapGroup = this.add.group();
+    // 2. Draw Room (Floor + Walls)
+    drawRoom(this);
 
-    // Draw Grid Floor
-    for (let x = 0; x < MAP_SIZE; x++) {
-        for (let y = 0; y < MAP_SIZE; y++) {
-            const isoX = (x - y) * TILE_W + OFFSET_X;
-            const isoY = (x + y) * TILE_H + OFFSET_Y;
-            
-            let tile = this.add.image(isoX, isoY, 'tile');
-            
-            let key = `${x},${y}`;
-            if (locations[key]) {
-                // Location Tile (Highlighted)
-                tile.setTint(locations[key].color);
-                
-                // Add a "Wall" effect by stacking tiles
-                for(let h=1; h<=2; h++) {
-                    let wall = this.add.image(isoX, isoY - (h*8), 'tile');
-                    wall.setTint(locations[key].color);
-                    wall.setAlpha(0.8 - (h*0.2));
-                }
-
-                // Label
-                let label = this.add.text(isoX, isoY - 40, locations[key].name, { 
-                    fontSize: '10px', 
-                    fontFamily: '"Press Start 2P"',
-                    color: '#fff', 
-                    backgroundColor: '#000000aa',
-                    padding: { x: 4, y: 4 }
-                }).setOrigin(0.5);
-                
-            } else {
-                // Floor Tile
-                tile.setTint(0x222233); 
-                tile.setAlpha(0.8);
-            }
-        }
-    }
-
-    // 2. Start Data Polling
+    // 3. Start Polling
     this.time.addEvent({ delay: 1000, callback: fetchState, callbackScope: this, loop: true });
 }
 
-function update() {}
+function update() {
+    // Sort depth by Y position for correct isometric occlusion
+    this.children.list.forEach(child => {
+        if (child.type === 'Container' || child.type === 'Image') {
+            // Simple depth sorting: lower on screen = closer to camera
+            child.setDepth(child.y);
+        }
+    });
+}
+
+function generateTextures(scene) {
+    // Floor Tile (Diamond)
+    const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+    
+    // Top face
+    graphics.fillStyle(0x95a5a6); // Light grey
+    graphics.beginPath();
+    graphics.moveTo(32, 0);
+    graphics.lineTo(64, 16);
+    graphics.lineTo(32, 32);
+    graphics.lineTo(0, 16);
+    graphics.closePath();
+    graphics.fill();
+    
+    // Left face (Thickness)
+    graphics.fillStyle(0x7f8c8d); // Darker
+    graphics.beginPath();
+    graphics.moveTo(0, 16);
+    graphics.lineTo(32, 32);
+    graphics.lineTo(32, 36); // 4px thick
+    graphics.lineTo(0, 20);
+    graphics.closePath();
+    graphics.fill();
+
+    // Right face (Thickness)
+    graphics.fillStyle(0xbdc3c7); // Lighter
+    graphics.beginPath();
+    graphics.moveTo(64, 16);
+    graphics.lineTo(32, 32);
+    graphics.lineTo(32, 36);
+    graphics.lineTo(64, 20);
+    graphics.closePath();
+    graphics.fill();
+    
+    // Highlight border
+    graphics.lineStyle(1, 0xffffff, 0.2);
+    graphics.strokePath();
+
+    graphics.generateTexture('floor_tile', 64, 40);
+
+    // Wall Tile (Vertical)
+    graphics.clear();
+    graphics.fillStyle(0xbdc3c7); // Wall color
+    graphics.fillRect(0, 0, 32, 120);
+    graphics.lineStyle(2, 0x95a5a6);
+    graphics.strokeRect(0, 0, 32, 120);
+    // Pattern
+    graphics.lineStyle(1, 0xffffff, 0.3);
+    for(let i=0; i<120; i+=20) {
+        graphics.moveTo(0, i);
+        graphics.lineTo(32, i);
+    }
+    graphics.strokePath();
+    graphics.generateTexture('wall_tile', 32, 120);
+
+    // Agent (Habbo-like blob)
+    graphics.clear();
+    // Body
+    graphics.fillStyle(0xe67e22); // Skin
+    graphics.fillRect(10, 10, 12, 12); // Head
+    graphics.fillStyle(0x3498db); // Shirt
+    graphics.fillRect(8, 22, 16, 14);
+    graphics.fillStyle(0x2c3e50); // Pants
+    graphics.fillRect(10, 36, 12, 14);
+    // Outline
+    graphics.lineStyle(2, 0x000000);
+    graphics.strokeRect(10, 10, 12, 12);
+    graphics.strokeRect(8, 22, 16, 14);
+    graphics.strokeRect(10, 36, 12, 14);
+    
+    graphics.generateTexture('agent_base', 32, 64);
+}
+
+function drawRoom(scene) {
+    // Draw Floor
+    for (let x = 0; x < MAP_SIZE; x++) {
+        for (let y = 0; y < MAP_SIZE; y++) {
+            const isoX = (x - y) * TILE_W/2 + OFFSET_X;
+            const isoY = (x + y) * TILE_H/2 + OFFSET_Y;
+            
+            scene.add.image(isoX, isoY, 'floor_tile');
+        }
+    }
+
+    // Draw Walls (Back Left and Back Right)
+    for (let i = 0; i < MAP_SIZE; i++) {
+        // Left Wall (along Y axis where X=0)
+        let wx = (0 - i) * TILE_W/2 + OFFSET_X - 32;
+        let wy = (0 + i) * TILE_H/2 + OFFSET_Y - 60;
+        scene.add.image(wx, wy, 'wall_tile').setDepth(wy - 1000); // Always behind
+
+        // Right Wall (along X axis where Y=0)
+        let rx = (i - 0) * TILE_W/2 + OFFSET_X + 32;
+        let ry = (i + 0) * TILE_H/2 + OFFSET_Y - 60;
+        // Flip for right wall perspective
+        let wall = scene.add.image(rx, ry, 'wall_tile');
+        wall.setFlipX(true);
+        wall.setDepth(ry - 1000);
+    }
+}
 
 async function fetchState() {
-    const statusSpan = document.getElementById('connection-status');
     try {
         const response = await fetch('http://localhost:8000/state');
         const data = await response.json();
         
-        if(data.error) {
-            statusSpan.innerText = "DB SYNC...";
-            statusSpan.style.color = "orange";
-        } else {
-            statusSpan.innerText = "ONLINE";
-            statusSpan.style.color = "#00ffcc";
+        if(data.agents) {
             updateAgents(data.agents);
+            document.getElementById('occupant-count').innerText = data.agents.length;
         }
-    } catch (e) { 
-        statusSpan.innerText = "OFFLINE";
-        statusSpan.style.color = "#ff0000";
+        if(data.chat_history) {
+            updateChatHistory(data.chat_history);
+        }
+    } catch (e) {
+        console.error(e);
     }
 }
 
 function updateAgents(agents) {
     const scene = game.scene.scenes[0];
     
-    // Remove agents who are gone
+    // Cleanup
     const currentNames = agents.map(a => a.name);
     Object.keys(agentSprites).forEach(name => {
         if (!currentNames.includes(name)) {
@@ -230,16 +292,19 @@ function updateAgents(agents) {
         }
     });
 
-    // Update or Create agents
     agents.forEach(agent => {
         const gridX = agent.coordinates.x;
         const gridY = agent.coordinates.y;
         
-        const targetX = (gridX - gridY) * TILE_W + OFFSET_X;
-        const targetY = (gridX + gridY) * TILE_H + OFFSET_Y - 35; // Lifted higher
+        // Map 5x5 grid to 10x10 room
+        const roomX = gridX * 2;
+        const roomY = gridY * 2;
+
+        const targetX = (roomX - roomY) * TILE_W/2 + OFFSET_X;
+        const targetY = (roomX + roomY) * TILE_H/2 + OFFSET_Y - 20;
 
         if (agentSprites[agent.name]) {
-            // MOVEMENT
+            // Move
             const entity = agentSprites[agent.name];
             scene.tweens.add({
                 targets: entity.container,
@@ -249,127 +314,99 @@ function updateAgents(agents) {
                 ease: 'Power2'
             });
             
-            // Update Label
-            entity.label.setText(`${agent.name}\n<${agent.status}>`);
-            
-            // Update Chat Bubble
-            updateChatBubble(entity, agent);
+            // Update Chat Bubble above head
+            if (agent.last_message && agent.last_message !== "...") {
+                showOverheadBubble(scene, entity, agent.last_message);
+            }
 
         } else {
-            // SPAWN
+            // Create
             const container = scene.add.container(targetX, targetY);
             
             // Shadow
-            const shadow = scene.add.ellipse(0, 25, 30, 15, 0x000000, 0.5);
-
+            const shadow = scene.add.ellipse(0, 28, 24, 12, 0x000000, 0.3);
+            
             // Sprite
-            const sprite = scene.add.image(0, 0, 'agent');
-            sprite.setTint(0x00ffcc); 
-            
-            // Label
-            const label = scene.add.text(0, -45, `${agent.name}\n<${agent.status}>`, { 
-                fontSize: '10px', 
-                fontFamily: '"Press Start 2P"',
-                fill: '#fff', 
-                align: 'center',
-                stroke: '#000',
-                strokeThickness: 4
+            const sprite = scene.add.image(0, 0, 'agent_base');
+            // Tint based on name hash to give variety
+            const tint = stringToColor(agent.name);
+            sprite.setTint(tint);
+
+            // Name Tag
+            const nameTag = scene.add.text(0, -40, agent.name, {
+                fontFamily: 'Verdana',
+                fontSize: '10px',
+                color: '#000',
+                backgroundColor: '#ffffffaa',
+                padding: { x: 2, y: 1 }
             }).setOrigin(0.5);
-            
-            // Chat Bubble Container
-            const bubble = scene.add.container(0, -90);
-            const bubbleBg = scene.add.graphics();
-            const bubbleText = scene.add.text(0, 0, "", { 
-                fontSize: '10px', 
-                fontFamily: 'Courier New',
-                color: '#000', 
-                align: 'center',
-                wordWrap: { width: 180 }
-            }).setOrigin(0.5);
-            
-            bubble.add([bubbleBg, bubbleText]);
-            bubble.visible = false; 
-            
-            container.add([shadow, sprite, label, bubble]);
-            
-            agentSprites[agent.name] = { container, sprite, label, bubble, bubbleBg, bubbleText };
-            
-            // Initial update
-            updateChatBubble(agentSprites[agent.name], agent);
+
+            container.add([shadow, sprite, nameTag]);
+            agentSprites[agent.name] = { container, sprite };
         }
     });
 }
 
-function updateChatBubble(entity, agent) {
-    const msg = agent.last_message;
-    
-    if (msg && msg !== "..." && msg !== lastProcessedMsgs[agent.name]) {
-        // New message!
-        lastProcessedMsgs[agent.name] = msg;
-        
-        // 1. Show Bubble
-        entity.bubbleText.setText(msg);
-        const bounds = entity.bubbleText.getBounds();
-        const pad = 8;
-        
-        entity.bubbleBg.clear();
-        entity.bubbleBg.fillStyle(0xffffff, 1);
-        entity.bubbleBg.lineStyle(2, 0x00ffcc, 1);
-        entity.bubbleBg.fillRoundedRect(
-            -bounds.width/2 - pad, 
-            -bounds.height/2 - pad, 
-            bounds.width + pad*2, 
-            bounds.height + pad*2, 
-            4
-        );
-        entity.bubbleBg.strokeRoundedRect(
-            -bounds.width/2 - pad, 
-            -bounds.height/2 - pad, 
-            bounds.width + pad*2, 
-            bounds.height + pad*2, 
-            4
-        );
-        
-        entity.bubble.visible = true;
-        entity.bubble.alpha = 1;
-        entity.bubble.y = -90; // Reset position
-        
-        // Pop effect
-        game.scene.scenes[0].tweens.add({
-            targets: entity.bubble,
-            y: -100,
-            duration: 200,
-            yoyo: true
-        });
+function showOverheadBubble(scene, entity, text) {
+    // Don't spam bubbles
+    if (entity.currentBubble) return;
 
-        // Fade out after 6 seconds
-        game.scene.scenes[0].tweens.add({
-            targets: entity.bubble,
-            alpha: 0,
-            delay: 6000,
-            duration: 1000,
-            onComplete: () => { entity.bubble.visible = false; }
+    const bubble = scene.add.container(0, -70);
+    const bg = scene.add.graphics();
+    const txt = scene.add.text(0, 0, text, {
+        fontFamily: 'Verdana',
+        fontSize: '10px',
+        color: '#000',
+        align: 'center',
+        wordWrap: { width: 120 }
+    }).setOrigin(0.5);
+
+    const bounds = txt.getBounds();
+    bg.fillStyle(0xffffff, 1);
+    bg.lineStyle(1, 0x000000, 1);
+    bg.fillRoundedRect(-bounds.width/2 - 5, -bounds.height/2 - 5, bounds.width + 10, bounds.height + 10, 5);
+    bg.strokeRoundedRect(-bounds.width/2 - 5, -bounds.height/2 - 5, bounds.width + 10, bounds.height + 10, 5);
+
+    bubble.add([bg, txt]);
+    entity.container.add(bubble);
+    entity.currentBubble = bubble;
+
+    // Float and fade
+    scene.tweens.add({
+        targets: bubble,
+        y: -90,
+        alpha: 0,
+        delay: 3000,
+        duration: 1000,
+        onComplete: () => {
+            bubble.destroy();
+            entity.currentBubble = null;
+        }
+    });
+}
+
+function updateChatHistory(history) {
+    const container = document.getElementById('chat-content');
+    // Only update if new messages
+    if (history.length > 0 && history[0].time !== lastChatTime) {
+        container.innerHTML = "";
+        history.forEach(h => {
+            const div = document.createElement('div');
+            div.className = 'chat-bubble';
+            div.innerHTML = `<b>${h.agent}:</b> ${h.message}`;
+            container.appendChild(div);
         });
-        
-        // 2. Add to Side Log
-        addToLog(agent.name, msg);
+        lastChatTime = history[0].time;
     }
 }
 
-function addToLog(name, msg) {
-    const log = document.getElementById('chat-log');
-    const entry = document.createElement('div');
-    entry.className = 'log-entry';
-    
-    const time = new Date().toLocaleTimeString();
-    entry.innerHTML = `
-        <div class="log-time">[${time}]</div>
-        <span class="log-agent">${name}</span> 
-        <span class="log-msg">${msg}</span>
-    `;
-    
-    log.appendChild(entry);
-    log.scrollTop = log.scrollHeight;
+function stringToColor(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    let c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
+    return '0x' + "00000".substring(0, 6 - c.length) + c;
 }
 </script>
 </body>
