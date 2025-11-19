@@ -271,12 +271,16 @@ async function fetchState() {
         if(data.agents) {
             updateAgents(data.agents);
             document.getElementById('occupant-count').innerText = data.agents.length;
+            document.getElementById('sys-status').innerText = "ONLINE";
+            document.getElementById('sys-status').style.color = "#2ecc71";
         }
         if(data.chat_history) {
             updateChatHistory(data.chat_history);
         }
     } catch (e) {
         console.error(e);
+        document.getElementById('sys-status').innerText = "OFFLINE";
+        document.getElementById('sys-status').style.color = "#e74c3c";
     }
 }
 
@@ -390,13 +394,18 @@ function updateChatHistory(history) {
     // Only update if new messages
     if (history.length > 0 && history[0].time !== lastChatTime) {
         container.innerHTML = "";
-        history.forEach(h => {
+        // Server sends newest first (DESC). Reverse to show oldest -> newest (Chat log style)
+        const sortedHistory = [...history].reverse();
+        
+        sortedHistory.forEach(h => {
             const div = document.createElement('div');
             div.className = 'chat-bubble';
             div.innerHTML = `<b>${h.agent}:</b> ${h.message}`;
             container.appendChild(div);
         });
         lastChatTime = history[0].time;
+        // Auto scroll to bottom
+        document.getElementById('chat-history').scrollTop = document.getElementById('chat-history').scrollHeight;
     }
 }
 

@@ -17,12 +17,12 @@ app.add_middleware(
 )
 
 # Robust database path finding
-# Tries to find agents.db in ../data or ./data relative to this script
+# Tries to find agents.db. Prioritize local data folder (where world.py writes when run locally)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 POSSIBLE_DB_PATHS = [
-    os.path.join(BASE_DIR, "../data/agents.db"),
-    os.path.join(BASE_DIR, "data/agents.db"),
-    os.path.join(BASE_DIR, "../data/test_agents.db"), # Fallback for testing
+    os.path.join(BASE_DIR, "data/agents.db"),      # Priority 1: ./data/agents.db
+    os.path.join(BASE_DIR, "../data/agents.db"),   # Priority 2: ../data/agents.db
+    os.path.join(BASE_DIR, "../data/test_agents.db"), 
 ]
 
 DB_PATH = None
