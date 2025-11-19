@@ -4,3 +4,5 @@ rich
 sqlalchemy
 sentence-transformers
 numpy
+fastapi
+uvicorn
