@@ -367,6 +367,24 @@ python python/world.py --config scenarios/weekend_getaway.yaml \
 
 See `scenarios/weekend_getaway.yaml` for an example scenario configuration.
 
+## Visualization
+
+An isometric "Sims-style" viewer is available to watch the agents in real-time.
+
+1.  **Install dependencies**:
+    ```bash
+    pip install fastapi uvicorn
+    ```
+
+2.  **Run the API server**:
+    ```bash
+    cd python
+    python server.py
+    ```
+
+3.  **Open the viewer**:
+    Open `visualizer/index.html` in your web browser.
+
 ## Transcript Output
 - Text: `transcripts/conversation_<timestamp>.txt`
 - JSON (if `--json`): includes structured history + metadata.

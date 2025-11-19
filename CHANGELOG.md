@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added - 2025-11-19
+
+#### Visualization
+- **Isometric Viewer**: Added a web-based isometric viewer for the agent world (`visualizer/index.html`) using Phaser.js
+- **Visualization Server**: Added `python/server.py` (FastAPI) to serve real-time agent state from the database
+
 ### Added - 2025-11-18
 
 #### Ollama LLM Integration for Autonomous Agents
