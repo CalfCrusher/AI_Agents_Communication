@@ -385,6 +385,16 @@ An isometric "Sims-style" viewer is available to watch the agents in real-time.
 3.  **Open the viewer**:
     Open `visualizer/index.html` in your web browser.
 
+### How it Works
+
+The visualization system consists of three parts running in parallel:
+
+1.  **The Simulation (`world.py`)**: This is the "engine". It runs in a loop, calculating agent decisions (move, chat, work) and writing them to the SQLite database (`agents.db`).
+2.  **The API Server (`server.py`)**: This acts as a bridge. It reads the current state from the database and serves it as a JSON API (`/state`). It also serves the visualizer files.
+3.  **The Frontend (`index.html`)**: This runs in your browser. It polls the API server every second to get the latest agent locations and statuses, then animates the sprites using Phaser.js.
+
+**Note:** You must have the simulation running (`python world.py ...`) in one terminal for the agents to move in the visualizer.
+
 ## Transcript Output
 - Text: `transcripts/conversation_<timestamp>.txt`
 - JSON (if `--json`): includes structured history + metadata.
